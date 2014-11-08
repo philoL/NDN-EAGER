@@ -39,10 +39,11 @@ class Controller(object):
     def onInterest(self, prefix, interest, transport, registeredPrefixId):
         self._responseCount += 1
 
-        dump("interest ": interest)
+        dump("interest ", interest.getName())
+        dump("Uri ", interest.getName().toUri())
         # Make and sign a Data packet.
         #data = Data(interest.getName())
-        #content = "Echo " + interest.getName().toUri()
+        content = "Echo " + interest.getName().toUri()
         #data.setContent(content)
         #self._keyChain.sign(data, self._certificateName)
         #encodedData = data.wireEncode()

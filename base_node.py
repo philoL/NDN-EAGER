@@ -216,3 +216,8 @@ class BaseNode(object):
                 if line.startswith('Serial'):
                     return line.split(':')[1].strip()
 
+
+def main():
+    b = BaseNode()
+
+main()

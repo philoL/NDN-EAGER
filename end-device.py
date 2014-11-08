@@ -51,7 +51,7 @@ def main():
     face.expressInterest(name1, device.onData, device.onTimeout)
 
 
-    while counter._callbackCount < 10:
+    while device._callbackCount < 10:
         face.processEvents()
         # We need to sleep for a few milliseconds so we don't use 100% of the CPU.
         time.sleep(0.01)
