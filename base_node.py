@@ -116,6 +116,9 @@ class BaseNode(object):
         Called before the event loop starts.
         """
         pass
+    
+    def getKeyChain(self):
+        return self._keyChain
 
     def getDefaultCertificateName(self):
         try:
@@ -217,7 +220,3 @@ class BaseNode(object):
                     return line.split(':')[1].strip()
 
 
-def main():
-    b = BaseNode()
-
-main()

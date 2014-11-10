@@ -20,6 +20,7 @@
 import time
 from pyndn import Name
 from pyndn import Face
+from base_node import BaseNode
 
 def dump(*list):
     result = ""
@@ -27,8 +28,11 @@ def dump(*list):
         result += (element if type(element) is str else repr(element)) + " "
     print(result)
 
-class Device(object):
+class Device(BaseNode):
     def __init__(self):
+        super(Device, self).__init__()
+        
+        self.deviceSerial = self.getSerial()
         self._callbackCount = 0
 
     def onData(self, interest, data):
@@ -41,7 +45,7 @@ class Device(object):
         self._callbackCount += 1
         dump("Time out for interest", interest.getName().toUri())
 
-def main():
+if __name__ == '__main__':
     face = Face("")
 
     device = Device()
@@ -58,4 +62,3 @@ def main():
 
     face.shutdown()
 
-main()

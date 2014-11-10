@@ -23,6 +23,8 @@ from pyndn import Name
 from pyndn import Data
 from pyndn import Face
 from pyndn.security import KeyChain
+from base_node import BaseNode
+
 
 def dump(*list):
     result = ""
@@ -30,10 +32,9 @@ def dump(*list):
         result += (element if type(element) is str else repr(element)) + " "
     print(result)
 
-class Controller(object):
-    def __init__(self, keyChain, certificateName):
-        self._keyChain = keyChain
-        self._certificateName = certificateName
+class Controller(BaseNode):
+    def __init__(self):
+        super(Controller, self).__init__()
         self._responseCount = 0
 
     def onInterest(self, prefix, interest, transport, registeredPrefixId):
@@ -55,16 +56,18 @@ class Controller(object):
         self._responseCount += 1
         dump("Register failed for prefix", prefix.toUri())
 
-def main():
+if __name__ == '__main__':
+
     # The default Face will connect using a Unix socket, or to "localhost".
     face = Face()
 
     # Use the system default key chain and certificate name to sign commands.
-    keyChain = KeyChain()
-    face.setCommandSigningInfo(keyChain, keyChain.getDefaultCertificateName())
+    
+    controller = Controller()
+    face.setCommandSigningInfo(controller.getKeyChain(), controller.getDefaultCertificateName())
 
     # Also use the default certificate name to sign data packets.
-    controller = Controller(keyChain, keyChain.getDefaultCertificateName())
+
     prefix = Name("/home/")
     dump("Register prefix", prefix.toUri())
     face.registerPrefix(prefix, controller.onInterest, controller.onRegisterFailed)
@@ -76,4 +79,3 @@ def main():
 
     face.shutdown()
 
-main()
