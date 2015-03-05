@@ -121,7 +121,7 @@ class Device(BaseNode):
 
 
     def beforeLoopStart(self):
-        #self.face.registerPrefix('/', self.onInterest, self.onRegisterFailed)
+        self.face.registerPrefix('/home', self.onInterest, self.onRegisterFailed)
         self.expressBootstrapInterest()
         
     def onTimeout(self, interest):
