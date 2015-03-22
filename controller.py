@@ -45,8 +45,6 @@ class Controller(BaseNode):
         self._identity = "/home/controller/id999"
         self._hmacHelper = HmacHelper(self._symmetricKey)
 
-    def setFace(self,face):
-        self.face = face
 
     def onInterest(self, prefix, interest, transport, registeredPrefixId):
         self._responseCount += 1

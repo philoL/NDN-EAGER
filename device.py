@@ -17,6 +17,11 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # A copy of the GNU General Public License is in the file COPYING.
 
+"""
+This module defines Device class, which contains core modules of end device, including device discovery protocol, syncronization protocol, and access control manager.
+"""
+
+
 import time
 import json
 from pyndn import Name, Face, Interest, Data, ThreadsafeFace
@@ -37,8 +42,8 @@ def dump(*list):
     print(result)
 
 class Device(BaseNode):
-    def __init__(self,configFileName):
-        super(Device, self).__init__(configFileName=configFileName)
+    def __init__(self):
+        super(Device, self).__init__()
         
         self._deviceSerial = self.getSerial()
         self._callbackCount = 0
@@ -68,10 +73,6 @@ class Device(BaseNode):
 
         dump("Express bootstrap interest : ",bootstrapInterest.toUri())
         self.face.expressInterest(bootstrapInterest, self.onBootstrapData, self.onTimeout)
-    def onInterest():
-        pass
-    def onRegisterFailed():
-	pass
     
     def onBootstrapData(self, interest, data):
         dump("Bootstrap data received.")
@@ -128,13 +129,18 @@ class Device(BaseNode):
         self._callbackCount += 1
         dump("Time out for interest", interest.getName().toUri())
 
-    def requestCertificate(self, keyIdentity):
+    def onInterest():
+        pass
+    def onRegisterFailed():
+	pass
+
+#    def requestCertificate(self, keyIdentity):
         """
         We compose a command interest with our public key info so the controller
         can sign us a certificate that can be used with other nodes in the network.
         Name format : /home/<device-category>/KEY/<device-id>/<key-id>/<publickey>/ID-CERT/<version-number>
         """
-        certificateRequestName = self._keyChain.getDefaultIdentity()
+"""        certificateRequestName = self._keyChain.getDefaultIdentity()
         deviceIdComponent = certificateRequestName.get(-1)
         keyIdComponent = keyIdentity.get(-1)
 
@@ -163,11 +169,11 @@ class Device(BaseNode):
         
     def onCertificateData(self, interest, data):
         dump("OnCertificateData : ",data)
-        
+"""        
 
 if __name__ == '__main__':
 
-    device = Device("tmp.conf")
+    device = Device()
     device.start()
     
     

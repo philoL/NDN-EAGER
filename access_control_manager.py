@@ -16,3 +16,11 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # A copy of the GNU General Public License is in the file COPYING.
+
+"""
+This module uses access token method to sign, verfy, encrypt and decrypt data/interest. Besides, it generates and updates seed/command access token/access token. 
+
+"""
+
+class AccessControlManager(object):
+    pass

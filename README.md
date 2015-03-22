@@ -1,2 +1,2 @@
 # NDN-HOME
-Bootstrap procedure for NDN home.
+Smart home via NDN.

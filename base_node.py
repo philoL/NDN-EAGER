@@ -17,6 +17,10 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # A copy of the GNU General Public License is in the file COPYING.
 
+"""
+This module defines BaseNode class, which contains methods/attributes common to both end device and controller.
+"""
+
 import logging
 import time
 import sys
@@ -28,22 +32,17 @@ from pyndn.security.policy import ConfigPolicyManager
 from pyndn.security import KeyChain
 from pyndn.security.identity import IdentityManager, BasicIdentityStorage
 from pyndn.security.security_exception import SecurityException
-    
 
-from collections import namedtuple
+from access_control_manager import AccessControlManager    
 
 try:
     import asyncio
 except ImportError:
     import trollius as asyncio
 
-#Command = namedtuple('Command', ['suffix', 'function', 'keywords', 'isSigned'])
 
 class BaseNode(object):
-    """
-    This class contains methods/attributes common to both end device and controller.
-    
-    """
+
     def __init__(self,configFileName):
         """
         Initialize the network and security classes for the node
@@ -53,10 +52,10 @@ class BaseNode(object):
 	
         self._identityStorage = BasicIdentityStorage()
         self._identityManager = IdentityManager(self._identityStorage)
-        self._policyManager = ConfigPolicyManager(configFileName)
 
+        #self._policyManager = ConfigPolicyManager(configFileName)
         # hopefully there is some private/public key pair available
-        self._keyChain = KeyChain(self._identityManager,self._policyManager)
+        #self._keyChain = KeyChain(self._identityManager,self._policyManager)
 
         self._registrationFailures = 0
         self._prepareLogging()
@@ -64,10 +63,11 @@ class BaseNode(object):
         self._setupComplete = False
         self._instanceSerial = None
 
-        # waiting devices register this prefix and respond to discovery
-        # or configuration interest
         self._bootstrapPrefix = '/home/controller/bootstrap'
-
+	self._serviceProfileList = []
+	self._commmandList = []
+	self._protocolList = []
+	
     def getSerial(self):
         """
          Since you may wish to run two nodes on a Raspberry Pi, each
@@ -82,9 +82,18 @@ class BaseNode(object):
             self._instanceSerial = prefix.encode('hex')
         return self._instanceSerial
 
-##
-# Logging
-##
+    def addServiceProfiles(self,profiles):
+        pass
+
+    def addServices(self,services):
+        pass
+
+    def addProtocols(self,protocols):
+        pass
+
+"""
+Logging
+"""
     def _prepareLogging(self):
         self.log = logging.getLogger(str(self.__class__))
         self.log.setLevel(logging.DEBUG)
@@ -110,37 +119,15 @@ class BaseNode(object):
         """
         return self.log
 
-###
-# Startup and shutdown
-###
+"""
+Startup and shutdown
+"""
     def beforeLoopStart(self):
         """
         Called before the event loop starts.
         """
         pass
     
-    def getKeyChain(self):
-        return self._keyChain
-
-    def getDefaultIdentity(self):
-        try:
-            defaultIdentity = self._identityManager.getDefaultIdentity()
-        except SecurityException:
-            defaultIdentity = ""
-
-        return defaultIdentity
-
-
-    def getDefaultCertificateName(self):
-        #exception - no certficate, return ''
-
-        try:
-            certName = self._identityStorage.getDefaultCertificateNameForIdentity( 
-            self._identityManager.getDefaultIdentity())
-        except SecurityException:
-            certName = ""
-
-        return certName
 
     def start(self):
         """
@@ -176,15 +163,21 @@ class BaseNode(object):
         self.log.info("Shutting down")
         self._isStopped = True 
         
-###
-# Data handling
-###
+"""
+Data handling
+"""
+    def createACK(self):
+        pass
+  
+    def createNACK(self):
+        pass
+
     def signData(self, data):
         """
         Sign the data with our network certificate
         :param pyndn.Data data: The data to sign
         """
-        self._keyChain.sign(data, self.getDefaultCertificateName())
+	pass
 
     def sendData(self, data, transport, sign=True):
         """
@@ -198,10 +191,10 @@ class BaseNode(object):
             self.signData(data)
         transport.send(data.wireEncode().buf())
 
-###
-# 
-# 
-##
+"""
+Failure handling
+ 
+"""
     def onRegisterFailed(self, prefix):
         """
         Called when the node cannot register its name with the forwarder
