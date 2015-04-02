@@ -25,7 +25,7 @@ from hmac_key import HMACKey
 import hmac 
 from hashlib import sha256
 from device_profile import  DeviceProfile
-
+import sys
 from pyndn.security import KeyChain
 from base_node import BaseNode
 from pyndn.security import SecurityException
@@ -77,6 +77,12 @@ class Counter(object):
             self._loop.stop()
 
 def main():
+    if len(sys.argv) < 2:
+        print("argv error: please input turnOn of turnOff")
+        exit(1)
+    else:
+        cmd = sys.argv[1]
+
     loop = asyncio.get_event_loop()
     #face = ThreadsafeFace(loop, "localhost")
     face = Face("localhost")
@@ -86,11 +92,11 @@ def main():
     seed = HMACKey(0,0,"seed","seedName")
 
     # Try to fetch anything.
-    name1 = Name("/home/sensor/LED/1/turnOn/0/0")
+    name1 = Name("/home/sensor/LED/1/"+cmd+"/0/0")
 
-    commandTokenName = '/home/sensor/LED/1/turnOn/token/0'
+    commandTokenName = '/home/sensor/LED/1/'+cmd+'/token/0'
     commandTokenKey = hmac.new(seed.getKey(), commandTokenName, sha256).digest()
-    accessTokenName = '/home/sensor/LED/1/turnOn/token/0/user/Teng/token/0'
+    accessTokenName = '/home/sensor/LED/1/'+cmd+'/token/0/user/Teng/token/0'
     accessTokenKey = hmac.new(commandTokenKey, accessTokenName, sha256).digest()
     accessToken = HMACKey(0,0,accessTokenKey,accessTokenName)
 
@@ -114,7 +120,7 @@ def main():
     """
 
 
-    while counter._callbackCount < 50:
+    while counter._callbackCount < 1:
         face.processEvents()
         # We need to sleep for a few milliseconds so we don't use 100% of the CPU.
         time.sleep(2)
