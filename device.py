@@ -31,6 +31,8 @@ from base_node import BaseNode
 from hmac_helper import HmacHelper 
 from pyndn.security.security_exception import SecurityException
 from pyndn.util import Blob
+from device_profile import  DeviceProfile
+
 try:
     import asyncio
 except ImportError:
@@ -46,11 +48,10 @@ class Device(BaseNode):
     def __init__(self,configFileName=None):
         super(Device, self).__init__(configFileName)
         
-        self._deviceSerial = self.getSerial()
+        #for test
+        self._deviceProfile = DeviceProfile(category = "sensor", type_="LED", serialNumber = "T99999990")
         self._callbackCount = 0
         self._symKey = "symmetricKeyForBootstrapping"
-        self._category = "sensors"
-        self._id = "T9273659"
         self._hmacHelper = HmacHelper(self._symKey)
 
 
@@ -60,8 +61,10 @@ class Device(BaseNode):
         bootstrapName = Name(self._bootstrapPrefix)
 
         deviceParameters = {}
-        deviceParameters["category"] = self._category
-        deviceParameters["id"] = self._id
+        deviceParameters["category"] = self._deviceProfile.getCategory()
+        deviceParameters["serialNumber"] = self. _deviceProfile.getSerialNumber()
+        deviceParameters["type"] = self._deviceProfile.getType()
+
         bootstrapName.append(json.dumps(deviceParameters))
 
         bootstrapInterest = Interest(bootstrapName)
@@ -69,7 +72,7 @@ class Device(BaseNode):
         self._hmacHelper.signInterest(bootstrapInterest)
 
         dump("Express bootstrap interest : ",bootstrapInterest.toUri())
-        self.face.expressInterest(bootstrapInterest, self.onBootstrapData, self.onTimeout)
+        self.face.expressInterest(bootstrapInterest, self.onBootstrapData, self.onBootstrapTimeout)
     
     def onBootstrapData(self, interest, data):
         dump("Bootstrap data received.")
@@ -80,13 +83,21 @@ class Device(BaseNode):
             deviceNewIdentity = Name(content["deviceNewIdentity"])
             controllerIdentity = Name(content["controllerIdentity"])
             controllerPublicKeyInfo = content["controllerPublicKey"]
+            seed = content["seed"]
+            seedSequence = content["seedSequence"]
+            configurationTokenSequence = content["configurationTokenSequence"]
 
+
+            #register new identity 
+            dump("Registered new prefix: ", deviceNewIdentity.toUri())
             self.face.registerPrefix(content["deviceNewIdentity"],self.onInterest,self.onRegisterFailed)
+
             #set new identity as default and generate default key-pair with KSK Certificate
             self._identityStorage.addIdentity(deviceNewIdentity)
             self._identityManager.setDefaultIdentity(deviceNewIdentity)
             try:
                 self._identityManager.getDefaultKeyNameForIdentity(deviceNewIdentity)
+                dump("device identity already exists")
             except SecurityException:
                 #generate new key-pair and certificate for new identity
                 dump("Install new identity as default\nGenerate new key-pair and self signed certificate")
@@ -98,25 +109,20 @@ class Device(BaseNode):
             keyType = controllerPublicKeyInfo["keyType"]
             keyName = Name(controllerPublicKeyInfo["keyName"])
             keyDer = Blob().fromRawStr(controllerPublicKeyInfo["publicKeyDer"])
-            dump("Controller's KeyType: ",keyType)
-            dump("Controller's keyName: ",keyName)
-            dump("Controller public key der : ",keyDer)
 
             self._identityStorage.addIdentity(controllerIdentity)
             try:
                 self._identityStorage.addKey(keyName, keyType, keyDer)
-                dump("Controller's identity, key and certificate installled.")
+                dump("Controller's identity, key and certificate installled")
             except SecurityException:
                 dump("Controller's identity, key, certificate already exists.")
 
             #express an certificate request interest
             defaultKeyName = self._identityManager.getDefaultKeyNameForIdentity(self._keyChain.getDefaultIdentity() )
-            self.requestCertificate(defaultKeyName)
+            #self.requestCertificate(defaultKeyName)
         else:
             self.log.info("Bootstrap data is not verified")
-        
-        
-
+           
 
     def beforeLoopStart(self):
         #self.face.registerPrefix('/home', self.onInterest, self.onRegisterFailed)
@@ -126,18 +132,37 @@ class Device(BaseNode):
         self._callbackCount += 1
         dump("Time out for interest", interest.getName().toUri())
 
-    def onInterest():
-        pass
-    def onRegisterFailed():
-	pass
+    def onBootstrapTimeout(self, interest):
+        self._callbackCount += 1
+	self.expressBootstrapInterest()
+        dump("Time out for bootstrap interest, send again", interest.getName().toUri())
 
-#    def requestCertificate(self, keyIdentity):
+
+    def onInterest(self, prefix, interest, transport, registeredPrefixId):
+        interestName = interest.getName()
+        dump("Received interest: ",interestName.toUri())
+
+        if ("profile" in interestName.toUri()):
+            self.onProfileRequest(prefix, interest, transport, registeredPrefixId)
+    
+    def onProfileRequest(self, prefix, interest, transport, registeredPrefixId):
+        #TODO verification
+       
+        interestName = interest.getName() 
+       
+        data = Data(interestName)
+        content = self._deviceProfile
+        data.setContent(json.dumps(content.__dict__, encoding="latin-1"))
+        self.sendData(data,transport,sign=False)
+        dump("Send profile back : ", content.__dict__)
+    
+    def requestCertificate(self, keyIdentity):
         """
         We compose a command interest with our public key info so the controller
         can sign us a certificate that can be used with other nodes in the network.
         Name format : /home/<device-category>/KEY/<device-id>/<key-id>/<publickey>/ID-CERT/<version-number>
         """
-"""        certificateRequestName = self._keyChain.getDefaultIdentity()
+        certificateRequestName = self._keyChain.getDefaultIdentity()
         deviceIdComponent = certificateRequestName.get(-1)
         keyIdComponent = keyIdentity.get(-1)
 
@@ -166,7 +191,11 @@ class Device(BaseNode):
         
     def onCertificateData(self, interest, data):
         dump("OnCertificateData : ",data)
-"""        
+   
+    def onRegisterFailed(self, prefix):
+	dump("Register failed for prefix", prefix.toUri())
+
+
 
 if __name__ == '__main__':
 
