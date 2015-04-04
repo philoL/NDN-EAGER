@@ -137,8 +137,6 @@ class Controller(BaseNode):
             self.sendData(data,transport,sign=False)
            
             #request for device profile
-            dump("Wait for 5 s. New device is registering new prefix.")
-            time.sleep(5)
             self.expressProfileRequest(deviceNewIdentity)
         else: 
             self.log.info("Bootstrap interest not verified")
@@ -242,7 +240,11 @@ class Controller(BaseNode):
 
     def onProfileRequestTimeout(self, interest):
         dump("Time out for device profile request, send again")        
-        self.face.expressInterest(interest, self.onProfile, self.onProfileRequestTimeout)
+        interestName = interest.getName().getPrefix(-2)
+        profileRequest = Interest(interestName)
+
+        self._accessControlManager.signInterestWithHMACKey(profileRequest,self._newDevice['configurationToken'])
+        self.face.expressInterest(profileRequest, self.onProfile, self.onProfileRequestTimeout)
 
     def onRegisterFailed(self, prefix):
         self._responseCount += 1
