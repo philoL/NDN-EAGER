@@ -75,9 +75,36 @@ class Controller(BaseNode):
         elif ("KEY" in interestName.toUri() and "ID-CERT" in interestName.toUri()):
             dump("It is a certificate request interest")
             self.onCertificateRequest(prefix, interest, transport, registeredPrefixId)
+        elif ("login" in interestName.toUri()):
+            dump("It is a login interest")
+            self.onLoginInterest(prefix, interest, transport, registeredPrefixId)
 
+    def onLoginInterest(self, prefix, interest, transport, registeredPrfixId):
+     
+        interestName = interest.getName()
+        username = interestName.get(3).getValue().toRawStr()
+        content = ""
+        if username != "guest":
+            prefix = Name("/home/user/"+username)
+            hash_ = self._deviceUserAccessManager.getUserHash(prefix)
+            userHMACKey = HMACKey("0","0",hash_,"userHMACKey")
 
+            if ( self._accessControlManager.verifyInterestWithHMACKey(interest, userHMACKey) ):
+                content = "success"
+            else:
+                content = "invalide username or password"
+            
+            data = Data(interestName)
+            data.setContent(content)
+            dump(content)
+            self._accessControlManager.signDataWithHMACKey(data,userHMACKey)
+            self.sendData(data,transport,sign=False)
 
+        else:
+            #TODO guest mode
+            pass
+    
+   
     def onBootstrapInterest(self, prefix, interest, transport, registeredPrefixId):
         
         if ( self._accessControlManager.verifyInterestWithHMACKey(interest, self._bootstrapKey) ):
@@ -242,7 +269,8 @@ class Controller(BaseNode):
         dump("Time out for device profile request, send again")        
         interestName = interest.getName().getPrefix(-2)
         profileRequest = Interest(interestName)
-
+        profileRequest.setInterestLifetimeMilliseconds(3000)
+       
         self._accessControlManager.signInterestWithHMACKey(profileRequest,self._newDevice['configurationToken'])
         self.face.expressInterest(profileRequest, self.onProfile, self.onProfileRequestTimeout)
 

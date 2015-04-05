@@ -75,7 +75,8 @@ class UserAccessStorage(object):
             databaseFilePath = os.path.join(dbDirectory, 'ndnhome-controller.db')
 
         self._database =  sqlite3.connect(databaseFilePath)
-      
+        self._database.text_factory = str
+     
         #Check if the User table exists
         cursor = self._database.cursor()
         cursor.execute("SELECT name FROM sqlite_master WHERE TYPE ='table' and NAME = 'User'")
@@ -238,6 +239,22 @@ class UserAccessStorage(object):
         row = cursor.fetchone()
         cursor.close()
         return row
+
+    def getUserHash(self, prefix):
+        """
+        get the specified User hash
+        :param Name prefix: the user prefix
+        :return the corresponding hash of the user
+        :rtype: Blob
+        """
+        if not self.doesUserExistByPrefix(prefix):
+            return 0
+
+        cursor = self._database.cursor()
+        cursor.execute("SELECT hash FROM User WHERE prefix =?", (prefix.toUri(),))
+        hash_ = cursor.fetchone()[0]
+        cursor.close()
+        return hash_
 
     def deleteUser(self, prefix):
         """

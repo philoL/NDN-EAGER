@@ -40,7 +40,8 @@ class DeviceUserAccessManager(object):
         self._deviceStorage = deviceStorage
         userAccessStorage  = UserAccessStorage(databaseFilePath)
         self._userAccessStorage =  userAccessStorage 
- 
+         
+
     def createDevice(self, deviceProfile, seed, configurationToken, commandList = None):
         """
         Create a device in the database, including it's corresponding commands and serrvice profiles
@@ -177,6 +178,21 @@ class DeviceUserAccessManager(object):
         :rtype: INTEGER
         """
         return self._userAccessStorage.addUser(prefix, username, hash_, salt, type_)
+
+
+    def deleteUser(self, prefix):
+        """ 
+        delete a new user to User table, do nothing if the user already exists
+        
+        :param Name prefix: the prefix of the user
+        """
+        return self._userAccessStorage.deleteUser(prefix)
+
+
+    def getUserHash(self, prefix):
+        return self._userAccessStorage.getUserHash(prefix)
+ 
+
 
     def addAccess(self, devicePrefix, commandName, userPrefix, userDevice, accessToken):
         """ 

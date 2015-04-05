@@ -211,6 +211,15 @@ class TestUserAccessStorageMethods(ut.TestCase):
         self.assertTrue(result1.getName() == accessTokenName1, 'wrong access token returned')
         self.assertTrue(result2.getName() == accessTokenName2, 'wrong access token returned')
     
+    def test_11_get_user_hash(self):
+        username = 'user123'
+        self.add_a_default_user(username) 
+        prefix = Name("/home/"+username)
+
+        hash_ = self.storage.getUserHash(prefix)
+        self.assertTrue(hash_ == 'EEADFADSFAGASLGALS', 'wrong hash returned')       
+ 
+
     def add_a_default_user(self, username):
         prefixBase = '/home'
         prefixStr =prefixBase +'/' + username
