@@ -17,7 +17,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # A copy of the GNU General Public License is in the file COPYING.
 
-
+import copy
 import time
 import json
 from pyndn import Name, Face, Interest, Data
@@ -55,7 +55,7 @@ class Controller(BaseNode):
         self._deviceUserAccessManager = DeviceUserAccessManager()
         self._deviceDict = {}
 
-        #device dict (deviceProfile, seed, configurationToken, commandList, serviceProfileList)
+        #device dict[deviceIdentity] =  (deviceProfile, seed, configurationToken, commandList, serviceProfileList)
         self._newDevice = {}
         self._newDevice['deviceProfile'] = None
         self._newDevice['seed'] = None
@@ -78,6 +78,46 @@ class Controller(BaseNode):
         elif ("login" in interestName.toUri()):
             dump("It is a login interest")
             self.onLoginInterest(prefix, interest, transport, registeredPrefixId)
+        elif ("deviceList" in interestName.toUri() and "user" in interestName.toUri()):
+            dump("It is a device list request")
+            self.onDeviceListRequest(prefix, interest, transport, registeredPrefixId)
+        elif ("accessTokenList" in interestName.toUri() and "user" in interestName.toUri()):
+            dump("It is an access token list request")
+            self.onAccessTokenListRequest(prefix, interest, transport, registeredPrefixId)
+
+    def onAccessTokenListRequest(prefix, interest, transport, registeredPrefixId):
+         interestName = interest.getName()
+        username = interestName.get(4).getValue().toRawStr()
+
+
+    def onDeviceListRequest(self, prefix, interest, transport, registeeredPrefix):
+        interestName = interest.getName()
+        username = interestName.get(4).getValue().toRawStr()
+        #TODO guest check
+        prefix = Name("/home/user/"+username)
+        userHash = self._deviceUserAccessManager.getUserHash(prefix)
+        userHMACKey = HMACKey(0,0,userHash,"userHMACKey")
+        dump("device dict : ",self._deviceDict)       
+
+        if ( self._accessControlManager.verifyInterestWithHMACKey(interest,userHMACKey) ):
+            dump("Verified") 
+            deviceProfileList = []
+            for prefixStr in self._deviceDict.keys():
+                dump("prefix Str ------------- ",prefixStr)
+                tmp = self._deviceDict[prefixStr]['deviceProfile'].__dict__
+                dump("tmp :",tmp)
+                if (type(tmp["_prefix"]) != str):
+                    tmp["_prefix"] = tmp["_prefix"].toUri()
+                deviceProfileList.append(tmp)
+           
+            dump("device profile list : ",deviceProfileList)
+            data = Data(interestName)
+            data.setContent(json.dumps(deviceProfileList))
+            self._accessControlManager.signDataWithHMACKey(data,userHMACKey)
+            self.sendData(data,transport,sign=False)
+        else:
+            dump("Not verified")
+       
 
     def onLoginInterest(self, prefix, interest, transport, registeredPrfixId):
      
@@ -87,7 +127,7 @@ class Controller(BaseNode):
         if username != "guest":
             prefix = Name("/home/user/"+username)
             hash_ = self._deviceUserAccessManager.getUserHash(prefix)
-            userHMACKey = HMACKey("0","0",hash_,"userHMACKey")
+            userHMACKey = HMACKey(0,0,hash_,"userHMACKey")
 
             if ( self._accessControlManager.verifyInterestWithHMACKey(interest, userHMACKey) ):
                 content = "success"
@@ -235,8 +275,8 @@ class Controller(BaseNode):
             serialNumber = deviceProfileDict['_serialNumber']
             serviceProfileList = deviceProfileDict['_serviceProfileList'] 
 
-            self._newDevice['deviceProfile'] = DeviceProfile(prefix, location, manufacturer,
-                category, _type, model, serialNumber, serviceProfileList)
+            self._newDevice['deviceProfile'] = DeviceProfile(prefix, location, manufacturer, category, _type, model, serialNumber, serviceProfileList)
+
 
             dump("device profile ",self._newDevice['deviceProfile'])
 
@@ -244,12 +284,16 @@ class Controller(BaseNode):
             self._newDevice['commandList'] = content['commandList']
             dump("commandList ",self._newDevice['commandList'])
 
-            #add newDevice into self._deviceDict 
-            self._deviceDict[prefix] = self._newDevice
-
+            #add newDevice into self._deviceDict
+            tmpDevice = {}
+            tmpDevice['deviceProfile']= copy.copy(self._newDevice['deviceProfile']) 
+            tmpDevice['seed']= copy.copy(self._newDevice['seed']) 
+            tmpDevice['configurationToken']= copy.copy(self._newDevice['configurationToken']) 
+            tmpDevice['commandList']= self._newDevice['commandList'][:]
+             
+            self._deviceDict[prefix] = tmpDevice
+         
             #add device to DB
-            
-
             try:
                 self._deviceUserAccessManager.createDevice(self._newDevice['deviceProfile'], self._newDevice['seed'],
                         self._newDevice['configurationToken'], self._newDevice['commandList'])

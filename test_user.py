@@ -137,6 +137,45 @@ def login():
 
     face.shutdown()
 
+def deviceListRequest():
+    
+    loop = asyncio.get_event_loop()
+    #face = ThreadsafeFace(loop, "localhost")
+    face = Face("localhost")
+    # Counter will stop the ioService after callbacks for all expressInterest.
+    counter = Counter(loop, 3)
+
+    while True:
+        username = raw_input('Login username: ')
+        if not len(username)>0:
+            print("Username can't be blank")
+            continue
+        else:
+            break
+    while True:
+        password = raw_input("Login password: ")
+        if not len(password)>0:
+            print("Username can't be blank")
+            continue
+        else:
+            break
+        
+    userHMACKey = HMACKey(0,0,password,"userHMACKey")
+    
+    interestName = Name("/home/controller/deviceList/user/"+username)
+    interest = Interest(interestName)    
+
+    a = AccessControlManager()
+    a.signInterestWithHMACKey(interest,userHMACKey)
+    dump("Express interst :",interest.toUri())
+    face.expressInterest(interest,counter.onData,counter.onTimeout)
+    while counter._callbackCount < 1:
+        face.processEvents()
+        # We need to sleep for a few milliseconds so we don't use 100% of the CPU.
+        time.sleep(2)
+
+    face.shutdown()
+
 
  
 
@@ -162,7 +201,7 @@ def delete():
 if __name__ == "__main__":
    
     while(1):
-        option = raw_input("\nPlease select one of the options:\n0.Exit\n1.User registration\n2.User deletion\n3.User login\n\n")
+        option = raw_input("\nPlease select one of the options:\n0.Exit\n1.User registration\n2.User deletion\n3.User login\n4.Send a device list request\n")
         if option == "1":
             register()
         elif option =="2":
@@ -171,3 +210,5 @@ if __name__ == "__main__":
             exit(1)
         elif option =="3":
             login()
+        elif option =="4":
+            deviceListRequest()

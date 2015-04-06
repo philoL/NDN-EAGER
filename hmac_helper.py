@@ -127,8 +127,10 @@ class HmacHelper(object):
         if wireFormat is None:
             wireFormat = WireFormat.getDefaultWireFormat()
 
+
         signature = self.extractInterestSignature(interest, wireFormat)
         encoding = interest.wireEncode(wireFormat)
         hasher = hmac.new(self.key, encoding.toSignedBuffer(), sha256)
+
         return signature.getSignature().toRawStr() == hasher.digest()
 
