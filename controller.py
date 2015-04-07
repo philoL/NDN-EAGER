@@ -20,6 +20,7 @@
 import copy
 import time
 import json
+import base64
 from pyndn import Name, Face, Interest, Data
 from pyndn.key_locator import KeyLocator, KeyLocatorType
 from hmac_helper import HmacHelper 
@@ -85,9 +86,67 @@ class Controller(BaseNode):
             dump("It is an access token list request")
             self.onAccessTokenListRequest(prefix, interest, transport, registeredPrefixId)
 
-    def onAccessTokenListRequest(prefix, interest, transport, registeredPrefixId):
-         interestName = interest.getName()
-        username = interestName.get(4).getValue().toRawStr()
+    #def onAccessTokenListRequest(prefix, interest, transport, registeredPrefixId):
+     #    interestName = interest.getName()
+      #   username = interestName.get(4).getValue().toRawStr()
+    def onAccessTokenListRequest(self, prefix, interest, transport, registeredPrefixId):
+        interestName = interest.getName()
+  
+        devicePrefixStr = "/home"+interestName.getSubName(2,3).toUri()
+        dump("device prefix: ",devicePrefixStr)       
+ 
+        username = interestName.get(6).getValue().toRawStr()
+        userPrefix = Name("/home/user/"+username)
+        userHash = self._deviceUserAccessManager.getUserHash(userPrefix)
+        userHMACKey = HMACKey(0,0,userHash,"userHMACKey")
+        
+        if ( self._accessControlManager.verifyInterestWithHMACKey(interest,userHMACKey) ):
+            dump("Verified")
+           
+            accessTokenInfoList = []
+ 
+            seed = self._deviceUserAccessManager.getSeed(Name(devicePrefixStr))           
+            dump("seed",seed)
+            dump("device dict", self._deviceDict)
+            dump("devicePrefixStr",devicePrefixStr)
+            commandList = []
+            try :
+                commandList = self._deviceDict[devicePrefixStr]['commandList']
+            except Exception:
+                dump("No such device")
+            dump("Command List: ",commandList)
+
+            for eachCommand in commandList:
+                commandTokenNameStr = devicePrefixStr+'/'+eachCommand+'/token/0'
+                commandTokenSequence = 0
+                seedSequence = 0
+                commandToken = hmac.new(seed.getKey(), commandTokenNameStr, sha256).digest()
+                accessTokenNameStr = commandTokenNameStr+'/user/'+username+'/token/0'
+                accessToken = hmac.new(commandToken, accessTokenNameStr, sha256).digest()        
+                                
+                
+                dump("commandTkenName ------------- : ",commandTokenNameStr)
+                dump("commandTken     ------------- : ",base64.b64encode(commandToken))
+                dump("accessTokenName ------------- : ",accessTokenNameStr)
+                dump("accessToken ----------------- : ",base64.b64encode(accessToken))
+                accessTokenInfo = {}
+                accessTokenInfo['command'] = eachCommand
+                accessTokenInfo['commandTokenSequence'] = commandTokenSequence
+                accessTokenInfo['seedSequence'] = seedSequence
+                accessTokenInfo['accessToken'] = base64.b64encode( accessToken)
+                accessTokenInfo['accessTokenName'] = accessTokenNameStr
+
+                accessTokenInfoList.append(accessTokenInfo)
+            data = Data(interestName)
+         
+            data.setContent(json.dumps(accessTokenInfoList))
+            self._accessControlManager.signDataWithHMACKey(data,userHMACKey)
+            self.sendData(data,transport,sign=False)
+        else:
+            dump("Not verified")
+       
+
+
 
 
     def onDeviceListRequest(self, prefix, interest, transport, registeeredPrefix):
@@ -103,14 +162,12 @@ class Controller(BaseNode):
             dump("Verified") 
             deviceProfileList = []
             for prefixStr in self._deviceDict.keys():
-                dump("prefix Str ------------- ",prefixStr)
                 tmp = self._deviceDict[prefixStr]['deviceProfile'].__dict__
                 dump("tmp :",tmp)
                 if (type(tmp["_prefix"]) != str):
                     tmp["_prefix"] = tmp["_prefix"].toUri()
                 deviceProfileList.append(tmp)
            
-            dump("device profile list : ",deviceProfileList)
             data = Data(interestName)
             data.setContent(json.dumps(deviceProfileList))
             self._accessControlManager.signDataWithHMACKey(data,userHMACKey)

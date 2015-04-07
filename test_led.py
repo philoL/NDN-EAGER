@@ -17,6 +17,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # A copy of the GNU Lesser General Public License is in the file COPYING.
 import time
+import base64
 import json
 from pyndn import Name, Face, Interest, Data
 from pyndn.key_locator import KeyLocator, KeyLocatorType
@@ -78,7 +79,7 @@ class Counter(object):
 
 def main():
     if len(sys.argv) < 2:
-        print("argv error: please input turnOn of turnOff")
+        print("argv error: please input turnOn, turnOff or status")
         exit(1)
     else:
         cmd = sys.argv[1]
@@ -95,17 +96,19 @@ def main():
     name1 = Name("/home/sensor/LED/1/"+cmd+"/0/0")
 
     commandTokenName = '/home/sensor/LED/1/'+cmd+'/token/0'
+    
     commandTokenKey = hmac.new(seed.getKey(), commandTokenName, sha256).digest()
-    accessTokenName = '/home/sensor/LED/1/'+cmd+'/token/0/user/Teng/token/0'
+    accessTokenName = '/home/sensor/LED/1/'+cmd+'/token/0/user/Tom/token/0'
     accessTokenKey = hmac.new(commandTokenKey, accessTokenName, sha256).digest()
     accessToken = HMACKey(0,0,accessTokenKey,accessTokenName)
 
     dump("seed.getKey() :",seed.getKey())
     dump("commandTokenName :",commandTokenName)
-    dump("commandTokenKey :",commandTokenKey)
+    dump("commandTokenKey :",base64.b64encode(commandTokenKey))
     dump("accessTokenName :",accessTokenName)
-    dump("accessTokenKey :",accessTokenKey)
+    dump("accessTokenKey :",base64.b64encode(accessTokenKey))
 
+    
     interest = Interest(name1)
     interest.setInterestLifetimeMilliseconds(3000)
     a = AccessControlManager()
