@@ -21,6 +21,7 @@ import time
 from pyndn import Name
 from pyndn import Face
 from base_node import BaseNode
+import CertificateRequestMessage
 
 def dump(*list):
     result = ""
@@ -47,6 +48,60 @@ class Device(BaseNode):
     def onTimeout(self, interest):
         self._callbackCount += 1
         dump("Time out for interest", interest.getName().toUri())
+
+    def _sendCertificateRequest(self, keyIdentity):
+        """
+        We compose a command interest with our public key info so the controller
+        can sign us a certificate that can be used with other nodes in the network.
+        """
+
+        #TODO: GENERATE A NEW PUBLIC/PRIVATE PAIR INSTEAD OF COPYING
+        makeKey = False
+        try:
+            defaultKey = self._identityStorage.getDefaultKeyNameForIdentity(keyIdentity)
+            newKeyName = defaultKey
+        except SecurityException:
+            defaultIdentity = self._keyChain.getDefaultIdentity()
+            defaultKey = self._identityStorage.getDefaultKeyNameForIdentity(defaultIdentity)
+            newKeyName = self._identityStorage.getNewKeyName(keyIdentity, True)
+            makeKey = True
+             
+        self.log.debug("Found key: " + defaultKey.toUri()+ " renaming as: " + newKeyName.toUri())
+
+        keyType = self._identityStorage.getKeyType(defaultKey)
+        keyDer = self._identityStorage.getKey(defaultKey)
+
+        if makeKey:
+            try:
+                privateDer = self._identityManager.getPrivateKey(defaultKey)
+            except SecurityException:
+                # XXX: is recovery impossible?
+                pass
+            else:
+                try:
+                    self._identityStorage.addKey(newKeyName, keyType, keyDer)
+                    self._identityManager.addPrivateKey(newKeyName, privateDer)
+                except SecurityException:
+                    # TODO: key shouldn't exist...
+                    pass
+
+        message = CertificateRequestMessage()
+        message.command.keyType = keyType
+        message.command.keyBits = keyDer.toRawStr()
+
+        for component in range(newKeyName.size()):
+            message.command.keyName.components.append(newKeyName.get(component).toEscapedString())
+
+        paramComponent = ProtobufTlv.encode(message)
+
+        interestName = Name(self._policyManager.getTrustRootIdentity()).append("certificateRequest").append(paramComponent)
+        interest = Interest(interestName)
+        interest.setInterestLifetimeMilliseconds(10000) # takes a tick to verify and sign
+        self._hmacHandler.signInterest(interest, keyName=self.prefix)
+
+        self.log.info("Sending certificate request to controller")
+        self.log.debug("Certificate request: "+interest.getName().toUri())
+        self.face.expressInterest(interest, self._onCertificateReceived, self._onCertificateTimeout)
 
 if __name__ == '__main__':
     face = Face("")
