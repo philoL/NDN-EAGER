@@ -21,7 +21,7 @@ import time
 from pyndn import Name
 from pyndn import Face
 from base_node import BaseNode
-import CertificateRequestMessage
+from commands import CertificateRequestMessage
 
 def dump(*list):
     result = ""
