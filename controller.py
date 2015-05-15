@@ -33,28 +33,70 @@ def dump(*list):
     print(result)
 
 class Controller(BaseNode):
-    def __init__(self):
-        super(Controller, self).__init__()
+    def __init__(self,configFileName):
+        super(Controller, self).__init__(configFileName=configFileName)
         self._responseCount = 0
+	self._symmetricKey = "symmetricKeyForBootStrapping"
+	self._prefix = "/home/controller"
 
     def onInterest(self, prefix, interest, transport, registeredPrefixId):
         self._responseCount += 1
-
-        dump("interest ", interest.getName())
-        dump("Uri ", interest.getName().toUri())
-        # Make and sign a Data packet.
-        #data = Data(interest.getName())
-        content = "Echo " + interest.getName().toUri()
-        #data.setContent(content)
-        #self._keyChain.sign(data, self._certificateName)
-        #encodedData = data.wireEncode()
+	
+	interestName = interest.getName()
+        dump("Received interest ", interestName)
+        
+	componentsString = []
+	for eachComponent in interestName._components:
+	    componentsString.append(eachComponent.toEscapedString())
+	if (len(componentsString) >= 6 and componentsString[0] == "home" and componentsString[1] == "controller" and componentsString[2] == "bootstrap"):
+	        
+	    newDeviceCategory = componentsString[3];
+	    newDeviceId = componentsString[4];
+	    signature = componentsString[5];
+	
+	    if (signature == self._symmetricKey):
+	        #newDeviceIdentityName = Name("/home"+newDeviceCategory+newDeviceId)
+		content = "/home/"+newDeviceCategory+"/"+newDeviceId+"/"
+		#content = content + "/"
+		identityName = self._identityManager.getDefaultIdentity()
+		keyName = self._identityManager.getDefaultKeyNameForIdentity(identityName)
+		key = self._identityManager.getPublicKey(keyName)
+		content = content+key.getKeyDer().toHex()
+		
+		dump("Send data : ",content)
+		data = Data(interest.getName())
+        	data.setContent(content)
+        	#self._keyChain.sign(data, self._certificateName)
+        	encodedData = data.wireEncode()
 
         #dump("Sent content", content)
-        #transport.send(encodedData.toBuffer())
+        transport.send(encodedData.toBuffer())
 
     def onRegisterFailed(self, prefix):
         self._responseCount += 1
         dump("Register failed for prefix", prefix.toUri())
+
+    def beforeLoopStart(self):
+	identityName = Name(self._prefix)
+	dump(identityName)
+	defaultIdentityExist = True
+	try:
+	    defaultIdentityName = self._identityManager.getDefaultIdentity()
+	    dump(self._identityManager.getDefaultIdentity())
+	    dump(self._identityManager.getDefaultKeyNameForIdentity(defaultIdentityName))
+	except:
+	    defaultIdentityExist = False
+	    
+
+	#dump(self._identityManager.getDefaultKeyNameForIdentity(self._prefix))
+	if not defaultIdentityExist or self._identityManager.getDefaultIdentity() != identityName:
+	    #make one
+	    self._identityManager.setDefaultIdentity(identityName)
+	    self.log.warn("Generating controller key pair(this would take a while)......")
+	    newKey = self._identityManager.generateRSAKeyPairAsDefault(Name(self._prefix), isKsk=True)
+	    newCert = self._identityManager.selfSign(newKey)
+	    self._identityManager.addCertificateAsDefault(newCert)
+
 
 if __name__ == '__main__':
 
@@ -63,15 +105,24 @@ if __name__ == '__main__':
 
     # Use the system default key chain and certificate name to sign commands.
     
-    controller = Controller()
+    controller = Controller("default.conf")
+    controller.beforeLoopStart()
+    
     face.setCommandSigningInfo(controller.getKeyChain(), controller.getDefaultCertificateName())
 
     # Also use the default certificate name to sign data packets.
 
     prefix = Name("/home/")
-    dump("Register prefix", prefix.toUri())
+    dump("Register prefix", prefix)
+
     face.registerPrefix(prefix, controller.onInterest, controller.onRegisterFailed)
 
+    identityName = controller._identityManager.getDefaultIdentity()
+    keyName = controller._identityManager.getDefaultKeyNameForIdentity(identityName)
+	
+    key = controller._identityManager.getPublicKey(keyName)
+    dump("key : ",key.getKeyDer().toHex())
+    
     while controller._responseCount < 100:
         face.processEvents()
         # We need to sleep for a few milliseconds so we don't use 100% of the CPU.

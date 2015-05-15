@@ -29,10 +29,10 @@ def dump(*list):
     print(result)
 
 class Device(BaseNode):
-    def __init__(self):
-        super(Device, self).__init__()
+    def __init__(self,configFileName):
+        super(Device, self).__init__(configFileName=configFileName)
         
-        self.deviceSerial = self.getSerial()
+        #self.deviceSerial = self.getSerial()
         self._callbackCount = 0
 
     def onData(self, interest, data):
@@ -41,6 +41,9 @@ class Device(BaseNode):
         # Use join to convert each byte to chr.
         dump(data.getContent().toRawStr())
 
+    def beforeLoopStart(self):
+	pass	
+	
     def onTimeout(self, interest):
         self._callbackCount += 1
         dump("Time out for interest", interest.getName().toUri())
@@ -48,11 +51,13 @@ class Device(BaseNode):
 if __name__ == '__main__':
     face = Face("")
 
-    device = Device()
-
-    name1 = Name("/home/controller/bootstrap/publickey/category1/id")
-    dump("Express name ", name1.toUri())
-    face.expressInterest(name1, device.onData, device.onTimeout)
+    device = Device("default.conf")
+    
+    symKey = "symmetricKeyForBootStrapping"
+    bootStrapName = Name("/home/controller/bootstrap/light/id1/"+symKey)
+    dump("Express name ",bootStrapName.toUri())
+    
+    face.expressInterest(bootStrapName, device.onData, device.onTimeout)
 
 
     while device._callbackCount < 10:

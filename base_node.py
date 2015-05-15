@@ -23,6 +23,7 @@ import sys
 import random
 
 from pyndn import Name, Face, Interest, Data, ThreadsafeFace
+from pyndn.security.policy import ConfigPolicyManager
 from pyndn.security import KeyChain
 from pyndn.security.identity import IdentityManager, BasicIdentityStorage
 from pyndn.security.security_exception import SecurityException
@@ -42,19 +43,19 @@ class BaseNode(object):
     This class contains methods/attributes common to both node and controller.
     
     """
-    def __init__(self):
+    def __init__(self,configFileName):
         """
         Initialize the network and security classes for the node
         """
         super(BaseNode, self).__init__()
 
-
+	
         self._identityStorage = BasicIdentityStorage()
         self._identityManager = IdentityManager(self._identityStorage)
-        
+        self._policyManager = ConfigPolicyManager(configFileName)
 
         # hopefully there is some private/public key pair available
-        self._keyChain = KeyChain(self._identityManager)
+        self._keyChain = KeyChain(self._identityManager,self._policyManager)
 
         self._registrationFailures = 0
         self._prepareLogging()
