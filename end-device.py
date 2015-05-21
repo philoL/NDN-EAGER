@@ -18,10 +18,14 @@
 # A copy of the GNU Lesser General Public License is in the file COPYING.
 
 import time
+import json
 from pyndn import Name
 from pyndn import Face
+from pyndn import Interest
+from pyndn import KeyLocator, KeyLocatorType
 from base_node import BaseNode
-from commands import CertificateRequestMessage
+from pyndn.security.security_exception import SecurityException
+
 
 def dump(*list):
     result = ""
@@ -56,52 +60,6 @@ class Device(BaseNode):
         """
 
         #TODO: GENERATE A NEW PUBLIC/PRIVATE PAIR INSTEAD OF COPYING
-        makeKey = False
-        try:
-            defaultKey = self._identityStorage.getDefaultKeyNameForIdentity(keyIdentity)
-            newKeyName = defaultKey
-        except SecurityException:
-            defaultIdentity = self._keyChain.getDefaultIdentity()
-            defaultKey = self._identityStorage.getDefaultKeyNameForIdentity(defaultIdentity)
-            newKeyName = self._identityStorage.getNewKeyName(keyIdentity, True)
-            makeKey = True
-             
-        self.log.debug("Found key: " + defaultKey.toUri()+ " renaming as: " + newKeyName.toUri())
-
-        keyType = self._identityStorage.getKeyType(defaultKey)
-        keyDer = self._identityStorage.getKey(defaultKey)
-
-        if makeKey:
-            try:
-                privateDer = self._identityManager.getPrivateKey(defaultKey)
-            except SecurityException:
-                # XXX: is recovery impossible?
-                pass
-            else:
-                try:
-                    self._identityStorage.addKey(newKeyName, keyType, keyDer)
-                    self._identityManager.addPrivateKey(newKeyName, privateDer)
-                except SecurityException:
-                    # TODO: key shouldn't exist...
-                    pass
-
-        message = CertificateRequestMessage()
-        message.command.keyType = keyType
-        message.command.keyBits = keyDer.toRawStr()
-
-        for component in range(newKeyName.size()):
-            message.command.keyName.components.append(newKeyName.get(component).toEscapedString())
-
-        paramComponent = ProtobufTlv.encode(message)
-
-        interestName = Name(self._policyManager.getTrustRootIdentity()).append("certificateRequest").append(paramComponent)
-        interest = Interest(interestName)
-        interest.setInterestLifetimeMilliseconds(10000) # takes a tick to verify and sign
-        self._hmacHandler.signInterest(interest, keyName=self.prefix)
-
-        self.log.info("Sending certificate request to controller")
-        self.log.debug("Certificate request: "+interest.getName().toUri())
-        self.face.expressInterest(interest, self._onCertificateReceived, self._onCertificateTimeout)
 
 if __name__ == '__main__':
     face = Face("")
@@ -109,13 +67,27 @@ if __name__ == '__main__':
     device = Device("default.conf")
     
     symKey = "symmetricKeyForBootStrapping"
-    bootStrapName = Name("/home/controller/bootstrap/light/id1/"+symKey)
-    dump("Express name ",bootStrapName.toUri())
-    
-    face.expressInterest(bootStrapName, device.onData, device.onTimeout)
+    bootStrapName = Name("/home/controller/bootstrap")
 
+    deviceParameters = {}
+    deviceParameters["category"] = "sensors"
+    deviceParameters["id"] = "T123456789"
+    bootStrapName.append(json.dumps(deviceParameters))
 
-    while device._callbackCount < 10:
+    bootStrapInterest = Interest(bootStrapName)
+
+    bootStrapInterest.setInterestLifetimeMilliseconds(5000)
+
+    bootStrapKeyLocator = KeyLocator()
+    bootStrapKeyLocator.setType(KeyLocatorType.KEY_LOCATOR_DIGEST)
+    bootStrapKeyLocator.setKeyData(symKey)
+    bootStrapInterest.setKeyLocator(bootStrapKeyLocator)
+
+    dump("Express interest ",bootStrapInterest.toUri())
+    face.expressInterest(bootStrapInterest, device.onData, device.onTimeout)
+     
+
+    while device._callbackCount < 100:
         face.processEvents()
         # We need to sleep for a few milliseconds so we don't use 100% of the CPU.
         time.sleep(0.01)

@@ -121,14 +121,14 @@ class BaseNode(object):
     def getKeyChain(self):
         return self._keyChain
 
-    def getDefaultCertificateName(self):
-        try:
-            certName = self._identityStorage.getDefaultCertificateNameForIdentity( 
-                self._identityManager.getDefaultIdentity())
-        except SecurityException:
-            certName = self._keyChain.getDefaultCertificateName()
-
-        return certName
+    #def getDefaultCertificateName(self):
+    #    try:
+    #        certName = self._identityStorage.getDefaultCertificateNameForIdentity( 
+    #            self._identityManager.getDefaultIdentity())
+    #    except SecurityException:
+    #        certName = self._keyChain.getDefaultCertificateName()
+#
+ #       return certName
 
     def start(self):
         """

@@ -19,6 +19,7 @@
 
 
 import time
+import json
 from pyndn import Name
 from pyndn import Data
 from pyndn import Face
@@ -38,64 +39,72 @@ class Controller(BaseNode):
         self._responseCount = 0
 	self._symmetricKey = "symmetricKeyForBootStrapping"
 	self._prefix = "/home/controller"
+	self._bootStrapPrefix = "/home/controller/bootstrap"
 
     def onInterest(self, prefix, interest, transport, registeredPrefixId):
         self._responseCount += 1
 	
 	interestName = interest.getName()
-        dump("Received interest ", interestName)
-        
-	componentsString = []
-	for eachComponent in interestName._components:
-	    componentsString.append(eachComponent.toEscapedString())
-	if (len(componentsString) >= 6 and componentsString[0] == "home" and componentsString[1] == "controller" and componentsString[2] == "bootstrap"):
-	        
-	    newDeviceCategory = componentsString[3];
-	    newDeviceId = componentsString[4];
-	    signature = componentsString[5];
+        dump("Received interest ", interestName.toUri())
+
+	if(interestName.toUri().startswith(self._bootStrapPrefix) and interest.getKeyLocator().getKeyData().toRawStr() == self._symmetricKey):
+  	    
+	    deviceParameters = json.loads(interestName.get(3).getValue().toRawStr())
+	    deviceNewIdentity = Name("/home")
+            
+	    #create new identity for device
+	    deviceNewIdentity.append(deviceParameters["category"])
+	    deviceNewIdentity.append(deviceParameters["id"])
+	    dump("New identity for device: ",deviceNewIdentity)
+	    
+	    #create key-pair and certificate for new identity
+	    self.
+
+	    data = Data(interestName)
+	    content = {}
+	    content["deviceNewIdentity"] = deviceNewIdentity.toUri()
+	    content[]
+	    content["controllerPublicKey"] = 
+
 	
-	    if (signature == self._symmetricKey):
-	        #newDeviceIdentityName = Name("/home"+newDeviceCategory+newDeviceId)
-		content = "/home/"+newDeviceCategory+"/"+newDeviceId+"/"
-		#content = content + "/"
-		identityName = self._identityManager.getDefaultIdentity()
-		keyName = self._identityManager.getDefaultKeyNameForIdentity(identityName)
-		key = self._identityManager.getPublicKey(keyName)
-		content = content+key.getKeyDer().toHex()
-		
-		dump("Send data : ",content)
-		data = Data(interest.getName())
-        	data.setContent(content)
+		#dump("Send data : ",content)
+		#data = Data(interest.getName())
+        	#data.setContent(content)
         	#self._keyChain.sign(data, self._certificateName)
-        	encodedData = data.wireEncode()
-
+        	#encodedData = data.wireEncode()
         #dump("Sent content", content)
-        transport.send(encodedData.toBuffer())
+        #transport.send(encodedData.toBuffer())
 
+    
     def onRegisterFailed(self, prefix):
         self._responseCount += 1
         dump("Register failed for prefix", prefix.toUri())
 
     def beforeLoopStart(self):
 	identityName = Name(self._prefix)
-	dump(identityName)
-	defaultIdentityExist = True
+	
+	defaultIdentityExists = True
 	try:
 	    defaultIdentityName = self._identityManager.getDefaultIdentity()
-	    dump(self._identityManager.getDefaultIdentity())
-	    dump(self._identityManager.getDefaultKeyNameForIdentity(defaultIdentityName))
 	except:
-	    defaultIdentityExist = False
+	    defaultIdentityExists = False
 	    
 
 	#dump(self._identityManager.getDefaultKeyNameForIdentity(self._prefix))
-	if not defaultIdentityExist or self._identityManager.getDefaultIdentity() != identityName:
+	if not defaultIdentityExists or self._identityManager.getDefaultIdentity() != identityName:
 	    #make one
+	    dump("Set default identity: ",identityName)
+	    #self._identityManager.createIdentityAndCertificate(identityName)
+	    self._identityStorage.addIdentity(identityName)
 	    self._identityManager.setDefaultIdentity(identityName)
-	    self.log.warn("Generating controller key pair(this would take a while)......")
-	    newKey = self._identityManager.generateRSAKeyPairAsDefault(Name(self._prefix), isKsk=True)
-	    newCert = self._identityManager.selfSign(newKey)
-	    self._identityManager.addCertificateAsDefault(newCert)
+
+	    try:
+	        getDefaultKeyNameForIdentity(identityName)
+	    except:
+	        newKey = self._identityManager.generateRSAKeyPairAsDefault(Name(self._prefix), isKsk=True)
+	        newCert = self._identityManager.selfSign(newKey)
+	        dump("new certificate", newCert)
+	        self._identityManager.addCertificateAsIdentityDefault(newCert)
 
 
 if __name__ == '__main__':
@@ -108,7 +117,7 @@ if __name__ == '__main__':
     controller = Controller("default.conf")
     controller.beforeLoopStart()
     
-    face.setCommandSigningInfo(controller.getKeyChain(), controller.getDefaultCertificateName())
+    face.setCommandSigningInfo(controller.getKeyChain(), controller._keyChain.getDefaultCertificateName())
 
     # Also use the default certificate name to sign data packets.
 
@@ -121,7 +130,7 @@ if __name__ == '__main__':
     keyName = controller._identityManager.getDefaultKeyNameForIdentity(identityName)
 	
     key = controller._identityManager.getPublicKey(keyName)
-    dump("key : ",key.getKeyDer().toHex())
+    #dump("key : ",key.getKeyDer().toHex())
     
     while controller._responseCount < 100:
         face.processEvents()
