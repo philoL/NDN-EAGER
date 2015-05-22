@@ -23,9 +23,12 @@ import json
 from pyndn import Name
 from pyndn import Data
 from pyndn import Face
+from pyndn.key_locator import KeyLocator, KeyLocatorType
+
 from pyndn.security import KeyChain
 from base_node import BaseNode
-
+from pyndn.security import SecurityException
+from pyndn.util import Blob
 
 def dump(*list):
     result = ""
@@ -37,45 +40,92 @@ class Controller(BaseNode):
     def __init__(self,configFileName):
         super(Controller, self).__init__(configFileName=configFileName)
         self._responseCount = 0
-	self._symmetricKey = "symmetricKeyForBootStrapping"
-	self._prefix = "/home/controller"
-	self._bootStrapPrefix = "/home/controller/bootstrap"
+	self._symmetricKey = "symmetricKeyForBootstrapping"
+	self._prefix = "/home/controller/id999"
 
     def onInterest(self, prefix, interest, transport, registeredPrefixId):
         self._responseCount += 1
+
+	interestName = interest.getName()
+
+	#for bootstrap interest
+	if(interestName.toUri().startswith(self._bootstrapPrefix) and interest.getKeyLocator().getKeyData().toRawStr() == self._symmetricKey):
+  	    dump("Reveived bootstrap interest")
+	    self.onBootstrapInterest(prefix, interest, transport, registeredPrefixId)   
+        
+    	elif ("KEY" in interestName.toUri() and "ID-CERT" in interestName.toUri()):
+	    dump("Reveived certificate request interest")
+	    self.onCertificateRequest(prefix, interest, transport, registeredPrefixId)
+
+    def onBootstrapInterest(self, prefix, interest, transport, registeredPrefixId):
 	
 	interestName = interest.getName()
-        dump("Received interest ", interestName.toUri())
-
-	if(interestName.toUri().startswith(self._bootStrapPrefix) and interest.getKeyLocator().getKeyData().toRawStr() == self._symmetricKey):
-  	    
-	    deviceParameters = json.loads(interestName.get(3).getValue().toRawStr())
-	    deviceNewIdentity = Name("/home")
+	deviceParameters = json.loads(interestName.get(3).getValue().toRawStr())
+	deviceNewIdentity = Name("/home")
             
-	    #create new identity for device
-	    deviceNewIdentity.append(deviceParameters["category"])
-	    deviceNewIdentity.append(deviceParameters["id"])
-	    dump("New identity for device: ",deviceNewIdentity)
+	#create new identity for device
+        deviceNewIdentity.append(deviceParameters["category"])
+        deviceNewIdentity.append(deviceParameters["id"])
 	    
-	    #create key-pair and certificate for new identity
-	    self.
+        #generate content
+        content = {}
+        content["deviceNewIdentity"] = deviceNewIdentity.toUri()
+        content["controllerIdentity"] = self._prefix
 
-	    data = Data(interestName)
-	    content = {}
-	    content["deviceNewIdentity"] = deviceNewIdentity.toUri()
-	    content[]
-	    content["controllerPublicKey"] = 
+        #get public key of controller
+        pKeyName = self._identityManager.getDefaultKeyNameForIdentity(self._identityManager.getDefaultIdentity())
+        pKey = self._identityManager.getPublicKey(pKeyName)
+
+        pKeyInfo = content["controllerPublicKey"] = {}
+        pKeyInfo["keyName"] = pKeyName.toUri()
+        pKeyInfo["keyType"] = pKey.getKeyType()
+        pKeyInfo["publicKeyDer"] = pKey.getKeyDer().toRawStr()
+        dump("Sent content : ",content)
+	      
+	#TODO generate signature for data
+	    
+	#generate data package
+	data = Data(interestName)
+	data.setContent(json.dumps(content,encoding="latin-1"))
+	#data.setSignature(signature)
+        encodedData = data.wireEncode()
+        transport.send(encodedData.toBuffer())
+
+
+    def onCertificateRequest(self, prefix, interest, transport, registeredPrefixId):
+	interestName = interest.getName()
+	dump("interest name : ",interestName)
+	
+	keyName = interestName[:3]
+	keyId = interestName.get(4)
+	keyName.append(keyId)
+	keyInfo = json.loads(interestName.get(5).getValue().toRawStr(),encoding="latin-1")
+	keyType = keyInfo['keyType']
+	keyDer = Blob().fromRawStr(keyInfo['keyDer'])
+
+	dump("keyname: ",keyName)
+	dump("keyType ",keyInfo['keyType'])
+	dump("keyDer string",keyInfo['keyDer'])
+	dump("keyDer",keyDer)
+
+	#device and controller are on one mechine, so it needs to be done.
+	self._identityManager.setDefaultIdentity(Name(self._prefix))
+	try:
+	    self._identityStorage.addKey(keyName, keyType, keyDer)
+	except SecurityException:
+	    dump("The public key for device already exists ")
+
+	signedCertificate = self._identityManager._generateCertificateForKey(keyName)
+	self._keyChain.sign(signedCertificate, self._identityManager.getDefaultCertificateName())
+	self._identityManager.addCertificate(signedCertificate)
+   	
 
 	
-		#dump("Send data : ",content)
-		#data = Data(interest.getName())
-        	#data.setContent(content)
-        	#self._keyChain.sign(data, self._certificateName)
-        	#encodedData = data.wireEncode()
-        #dump("Sent content", content)
-        #transport.send(encodedData.toBuffer())
+	encodedData = signedCertificate.wireEncode()
+        transport.send(encodedData.toBuffer())
 
-    
+
+
     def onRegisterFailed(self, prefix):
         self._responseCount += 1
         dump("Register failed for prefix", prefix.toUri())
@@ -99,11 +149,11 @@ class Controller(BaseNode):
 	    self._identityManager.setDefaultIdentity(identityName)
 
 	    try:
-	        getDefaultKeyNameForIdentity(identityName)
-	    except:
+	        self._identityManager.getDefaultKeyNameForIdentity(identityName)
+	    except SecurityException:
 	        newKey = self._identityManager.generateRSAKeyPairAsDefault(Name(self._prefix), isKsk=True)
 	        newCert = self._identityManager.selfSign(newKey)
-	        dump("new certificate", newCert)
+	        dump("generated new KSK certificate ", newCert)
 	        self._identityManager.addCertificateAsIdentityDefault(newCert)
 
 
@@ -126,11 +176,6 @@ if __name__ == '__main__':
 
     face.registerPrefix(prefix, controller.onInterest, controller.onRegisterFailed)
 
-    identityName = controller._identityManager.getDefaultIdentity()
-    keyName = controller._identityManager.getDefaultKeyNameForIdentity(identityName)
-	
-    key = controller._identityManager.getPublicKey(keyName)
-    #dump("key : ",key.getKeyDer().toHex())
     
     while controller._responseCount < 100:
         face.processEvents()

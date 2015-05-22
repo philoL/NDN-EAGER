@@ -65,7 +65,7 @@ class BaseNode(object):
 
         # waiting devices register this prefix and respond to discovery
         # or configuration interest
-        self._bootstrapPrefix = Name('/home/controller/bootstrap')
+        self._bootstrapPrefix = '/home/controller/bootstrap'
 
     def getSerial(self):
         """
