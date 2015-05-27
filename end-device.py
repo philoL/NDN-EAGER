@@ -19,14 +19,15 @@
 
 import time
 import json
-from pyndn import Name
-from pyndn import Face
-from pyndn import Interest
+from pyndn import Name, Face, Interest, Data, ThreadsafeFace
 from pyndn import KeyLocator, KeyLocatorType
 from base_node import BaseNode
 from pyndn.security.security_exception import SecurityException
 from pyndn.util import Blob
-
+try:
+    import asyncio
+except ImportError:
+    import trollius as asyncio
 
 def dump(*list):
     result = ""
@@ -35,88 +36,78 @@ def dump(*list):
     print(result)
 
 class Device(BaseNode):
-    def __init__(self,configFileName,face):
+    def __init__(self,configFileName):
         super(Device, self).__init__(configFileName=configFileName)
         
-        #self.deviceSerial = self.getSerial()
+        self._deviceSerial = self.getSerial()
         self._callbackCount = 0
-	self._face = face
+        self._symKey = "symmetricKeyForBootstrapping"
+        self._category = "sensors"
+        self._id = "T9273659"
 
-    def onData(self, interest, data):
-        self._callbackCount += 1
-	dump("Got data packet with name : ", data.getName().toUri())
-        # Use join to convert each byte to chr.
-        dump(data.getContent().toRawStr())
-
-	#haven't checked symmetric key digest yet
-	if (data.getName().toUri().startswith(self._bootstrapPrefix)):
-	    self.onBootstrapData(interest, data) 
 
     def expressBootstrapInterest(self):
-        symKey = "symmetricKeyForBootstrapping"
         
-	#generate bootstrap name /home/controller/bootstrap/<device-parameters>
-	bootstrapName = Name(device._bootstrapPrefix)
+        #generate bootstrap name /home/controller/bootstrap/<device-parameters>
+        bootstrapName = Name(self._bootstrapPrefix)
 
         deviceParameters = {}
-        deviceParameters["category"] = "sensors"
-        deviceParameters["id"] = "T123456789"
+        deviceParameters["category"] = self._category
+        deviceParameters["id"] = self._deviceSerial
         bootstrapName.append(json.dumps(deviceParameters))
 
         bootstrapInterest = Interest(bootstrapName)
-
         bootstrapInterest.setInterestLifetimeMilliseconds(5000)
-
         bootstrapKeyLocator = KeyLocator()
         bootstrapKeyLocator.setType(KeyLocatorType.KEY_LOCATOR_DIGEST)
-        bootstrapKeyLocator.setKeyData(symKey)
+        bootstrapKeyLocator.setKeyData(self._symKey)
         bootstrapInterest.setKeyLocator(bootstrapKeyLocator)
 
-	dump("Express interest :",bootstrapInterest.toUri())
-        self._face.expressInterest(bootstrapInterest, self.onBootstrapData, self.onTimeout)
+        dump("Express bootstrap interest : ",bootstrapInterest.toUri())
+        self.face.expressInterest(bootstrapInterest, self.onBootstrapData, self.onTimeout)
     
     def onBootstrapData(self, interest, data):
-	dump("Data received.")
-	content = json.loads(data.getContent().toRawStr(), encoding="latin-1")
-	deviceNewIdentity = Name(content["deviceNewIdentity"])
-	controllerIdentity = Name(content["controllerIdentity"])
-	controllerPublicKeyInfo = content["controllerPublicKey"]
+        dump("Bootstrap data received.")
+        content = json.loads(data.getContent().toRawStr(), encoding="latin-1")
+        deviceNewIdentity = Name(content["deviceNewIdentity"])
+        controllerIdentity = Name(content["controllerIdentity"])
+        controllerPublicKeyInfo = content["controllerPublicKey"]
 
-	#set new identity as default and generate default key-pair with KSK Certificate
-	self._identityStorage.addIdentity(deviceNewIdentity)
-	self._identityManager.setDefaultIdentity(deviceNewIdentity)
-	try:
-	    self._identityManager.getDefaultKeyNameForIdentity(deviceNewIdentity)
-	except SecurityException:
-	    #generate new key-pair and certificate for new identity
-	    dump("Installed new identity as default\nGenerating new key-pair and self signed certificate...")
-	    newKey = self._identityManager.generateRSAKeyPairAsDefault(Name(deviceNewIdentity), isKsk=True)
-	    newCert = self._identityManager.selfSign(newKey)
-	    self._identityManager.addCertificateAsIdentityDefault(newCert)
-	
-	#add controller's identity and public key
-	keyType = controllerPublicKeyInfo["keyType"]
-	keyName = Name(controllerPublicKeyInfo["keyName"])
-	keyDer = Blob().fromRawStr(controllerPublicKeyInfo["publicKeyDer"])
-	dump("KeyType: ",keyType)
-	dump("keyName: ",keyName)
-	dump("Controller public key der : ",keyDer)
+        #set new identity as default and generate default key-pair with KSK Certificate
+        self._identityStorage.addIdentity(deviceNewIdentity)
+        self._identityManager.setDefaultIdentity(deviceNewIdentity)
+        try:
+            self._identityManager.getDefaultKeyNameForIdentity(deviceNewIdentity)
+        except SecurityException:
+            #generate new key-pair and certificate for new identity
+            dump("Install new identity as default\nGenerate new key-pair and self signed certificate")
+            newKey = self._identityManager.generateRSAKeyPairAsDefault(Name(deviceNewIdentity), isKsk=True)
+            newCert = self._identityManager.selfSign(newKey)
+            self._identityManager.addCertificateAsIdentityDefault(newCert)
+        
+        #add controller's identity and public key
+        keyType = controllerPublicKeyInfo["keyType"]
+        keyName = Name(controllerPublicKeyInfo["keyName"])
+        keyDer = Blob().fromRawStr(controllerPublicKeyInfo["publicKeyDer"])
+        dump("Controller's KeyType: ",keyType)
+        dump("Controller's keyName: ",keyName)
+        dump("Controller public key der : ",keyDer)
 
-	self._identityStorage.addIdentity(controllerIdentity)
-	try:
-	    self._identityStorage.addKey(keyName, keyType, keyDer)
-	    dump("Controller's identity, key and certificate installled.")
-	except SecurityException:
-	    dump("Controller's identity, key, certificate already exists.")
+        self._identityStorage.addIdentity(controllerIdentity)
+        try:
+            self._identityStorage.addKey(keyName, keyType, keyDer)
+            dump("Controller's identity, key and certificate installled.")
+        except SecurityException:
+            dump("Controller's identity, key, certificate already exists.")
 
-	#express an certificate request interest
-	defaultKeyName = self._identityManager.getDefaultKeyNameForIdentity(self._keyChain.getDefaultIdentity() )
-	self.requestCertificate(defaultKeyName)
+        #express an certificate request interest
+        defaultKeyName = self._identityManager.getDefaultKeyNameForIdentity(self._keyChain.getDefaultIdentity() )
+        self.requestCertificate(defaultKeyName)
 
 
     def beforeLoopStart(self):
-	pass	
-	
+        self.expressBootstrapInterest()
+        
     def onTimeout(self, interest):
         self._callbackCount += 1
         dump("Time out for interest", interest.getName().toUri())
@@ -125,47 +116,39 @@ class Device(BaseNode):
         """
         We compose a command interest with our public key info so the controller
         can sign us a certificate that can be used with other nodes in the network.
-	Name format : /home/<device-category>/KEY/<device-id>/<key-id>/<publickey>/ID-CERT/<version-number>
-	"""
-	certificateRequestName = self._keyChain.getDefaultIdentity()
-	deviceIdComponent = certificateRequestName.get(-1)
-	keyIdComponent = keyIdentity.get(-1)
+        Name format : /home/<device-category>/KEY/<device-id>/<key-id>/<publickey>/ID-CERT/<version-number>
+        """
+        certificateRequestName = self._keyChain.getDefaultIdentity()
+        deviceIdComponent = certificateRequestName.get(-1)
+        keyIdComponent = keyIdentity.get(-1)
 
-	certificateRequestName = certificateRequestName
-	certificateRequestName.append("KEY")
-	#certificateRequestName.append(deviceIdComponent)
-	certificateRequestName.append(keyIdComponent)
+        certificateRequestName = certificateRequestName
+        certificateRequestName.append("KEY")
+        #certificateRequestName.append(deviceIdComponent)
+        certificateRequestName.append(keyIdComponent)
 
-	key = self._identityManager.getPublicKey(keyIdentity)
-	keyInfo = {}
-	keyInfo["keyType"] = key.getKeyType()
-	keyInfo["keyDer"] = key.getKeyDer().toRawStr()
+        key = self._identityManager.getPublicKey(keyIdentity)
+        keyInfo = {}
+        keyInfo["keyType"] = key.getKeyType()
+        keyInfo["keyDer"] = key.getKeyDer().toRawStr()
 
-	certificateRequestName.append(json.dumps(keyInfo, encoding="latin-1"))
+        certificateRequestName.append(json.dumps(keyInfo, encoding="latin-1"))
 
-	certificateRequestName.append("ID-CERT")
-	
-	dump("Sending certificate request : ",certificateRequestName)
+        certificateRequestName.append("ID-CERT")
+        
+        dump("Sending certificate request : ",certificateRequestName)
 
-	self._face.expressInterest(Interest(certificateRequestName), self.onCertificateData, self.onTimeout)
-	#TODO use symmetric key to sign
-	
+        self.face.expressInterest(Interest(certificateRequestName), self.onCertificateData, self.onTimeout)
+        #TODO use symmetric key to sign
+        
     def onCertificateData(self, interest, data):
-	dump("OnCertificateData : ",data)
-	
+        dump("OnCertificateData : ",data)
+        
 
 if __name__ == '__main__':
-    face = Face("")
 
-    device = Device("default.conf",face)
+    device = Device("default.conf")
+    device.start()
     
-    device.expressBootstrapInterest()
-    #device.requestCertificate(device._identityManager.getDefaultKeyNameForIdentity(device._keyChain.getDefaultIdentity() )) 
-
-    while device._callbackCount < 1000:
-        face.processEvents()
-        # We need to sleep for a few milliseconds so we don't use 100% of the CPU.
-        time.sleep(0.01)
-
-    face.shutdown()
+    
 

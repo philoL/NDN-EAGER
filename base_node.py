@@ -36,11 +36,11 @@ try:
 except ImportError:
     import trollius as asyncio
 
-Command = namedtuple('Command', ['suffix', 'function', 'keywords', 'isSigned'])
+#Command = namedtuple('Command', ['suffix', 'function', 'keywords', 'isSigned'])
 
 class BaseNode(object):
     """
-    This class contains methods/attributes common to both node and controller.
+    This class contains methods/attributes common to both end device and controller.
     
     """
     def __init__(self,configFileName):
@@ -77,8 +77,8 @@ class BaseNode(object):
             prefix = ''
             for i in range(prefixLen):
                 prefix += (chr(random.randint(0,0xff)))
-            suffix = self.getDeviceSerial().lstrip('0')
-            self._instanceSerial = '-'.join([prefix.encode('hex'), suffix])
+        
+            self._instanceSerial = prefix.encode('hex')
         return self._instanceSerial
 
 ##
@@ -87,7 +87,7 @@ class BaseNode(object):
     def _prepareLogging(self):
         self.log = logging.getLogger(str(self.__class__))
         self.log.setLevel(logging.DEBUG)
-        logFormat = "%(asctime)-15s %(name)-20s %(funcName)-20s (%(levelname)-8s):\n\t%(message)s"
+        logFormat = "%(asctime)-15s %(name)-20s %(funcName)-2s (%(levelname)-2s):\t%(message)s"
         self._console = logging.StreamHandler()
         self._console.setFormatter(logging.Formatter(logFormat))
         self._console.setLevel(logging.INFO)
@@ -121,14 +121,25 @@ class BaseNode(object):
     def getKeyChain(self):
         return self._keyChain
 
-    #def getDefaultCertificateName(self):
-    #    try:
-    #        certName = self._identityStorage.getDefaultCertificateNameForIdentity( 
-    #            self._identityManager.getDefaultIdentity())
-    #    except SecurityException:
-    #        certName = self._keyChain.getDefaultCertificateName()
-#
- #       return certName
+    def getDefaultIdentity(self):
+        try:
+            defaultIdentity = self._identityManager.getDefaultIdentity()
+        except SecurityException:
+            defaultIdentity = ""
+
+        return defaultIdentity
+
+
+    def getDefaultCertificateName(self):
+        #exception - no certficate, return ''
+
+        try:
+            certName = self._identityStorage.getDefaultCertificateNameForIdentity( 
+            self._identityManager.getDefaultIdentity())
+        except SecurityException:
+            certName = ""
+
+        return certName
 
     def start(self):
         """
@@ -138,13 +149,16 @@ class BaseNode(object):
         self.log.info("Starting up")
         self.loop = asyncio.get_event_loop()
         self.face = ThreadsafeFace(self.loop, '')
-        self.face.setCommandSigningInfo(self._keyChain, self.getDefaultCertificateName())
+       
         self._keyChain.setFace(self.face)
 
         self._isStopped = False
         self.face.stopWhen(lambda:self._isStopped)
-        self.beforeLoopStart()
         
+        self.beforeLoopStart()
+
+        self.face.setCommandSigningInfo(self._keyChain, self.getDefaultCertificateName())
+
         try:
             self.loop.run_forever()
         except KeyboardInterrupt:
