@@ -20,15 +20,15 @@
 
 import time
 import json
-from pyndn import Name
-from pyndn import Data
-from pyndn import Face
+from pyndn import Name, Face, Interest, Data
 from pyndn.key_locator import KeyLocator, KeyLocatorType
+from hmac_helper import HmacHelper 
 
 from pyndn.security import KeyChain
 from base_node import BaseNode
 from pyndn.security import SecurityException
 from pyndn.util import Blob
+
 
 def dump(*list):
     result = ""
@@ -43,14 +43,19 @@ class Controller(BaseNode):
         self._symmetricKey = "symmetricKeyForBootstrapping"
         self._prefix = "/home"
         self._identity = "/home/controller/id999"
+        self._hmacHelper = HmacHelper(self._symmetricKey)
+
+    def setFace(self,face):
+        self.face = face
 
     def onInterest(self, prefix, interest, transport, registeredPrefixId):
         self._responseCount += 1
-
         interestName = interest.getName()
+	dump("received interest : ",interestName.toUri())
 
         #for bootstrap interest
-        if(interestName.toUri().startswith(self._bootstrapPrefix) and interest.getKeyLocator().getKeyData().toRawStr() == self._symmetricKey):
+        #if(interestName.toUri().startswith(self._bootstrapPrefix) and interest.getKeyLocator().getKeyData().toRawStr() == self._symmetricKey):
+        if(interestName.toUri().startswith(self._bootstrapPrefix) and self._hmacHelper.verifyInterest(interest)):
             dump("Reveived bootstrap interest")
 	    self.onBootstrapInterest(prefix, interest, transport, registeredPrefixId)   
         
@@ -59,69 +64,87 @@ class Controller(BaseNode):
             self.onCertificateRequest(prefix, interest, transport, registeredPrefixId)
 
     def onBootstrapInterest(self, prefix, interest, transport, registeredPrefixId):
+        if (self._hmacHelper.verifyInterest(interest)):
+            self.log.info("Bootstrap interest verified")
+            interestName = interest.getName()
+            deviceParameters = json.loads(interestName.get(3).getValue().toRawStr())
+            deviceNewIdentity = Name("/home")
+                
+            #create new identity for device
+            deviceNewIdentity.append(deviceParameters["category"])
+            deviceNewIdentity.append(deviceParameters["id"])
+                
+            #generate content
+            content = {}
+            content["deviceNewIdentity"] = deviceNewIdentity.toUri()
+            content["controllerIdentity"] = self._identity
+
+            #get public key of controller
+            pKeyName = self._identityManager.getDefaultKeyNameForIdentity(self._identityManager.getDefaultIdentity())
+            pKey = self._identityManager.getPublicKey(pKeyName)
+
+            pKeyInfo = content["controllerPublicKey"] = {}
+            pKeyInfo["keyName"] = pKeyName.toUri()
+            pKeyInfo["keyType"] = pKey.getKeyType()
+            pKeyInfo["publicKeyDer"] = pKey.getKeyDer().toRawStr()
+            dump("Sent content : ",content)
+                  
+            #TODO generate signature for data
+                
+            #generate data package
+            data = Data(interestName)
+            data.setContent(json.dumps(content,encoding="latin-1"))
+            #data.setSignature(signature)
+	    self._hmacHelper.signData(data)
+
+            #encodedData = data.wireEncode()
+            #transport.send(encodedData.toBuffer())
+            self.sendData(data,transport,sign=False)
+        else: 
+            self.log.info("Bootstrap interest not verified")
         
-        interestName = interest.getName()
-        deviceParameters = json.loads(interestName.get(3).getValue().toRawStr())
-        deviceNewIdentity = Name("/home")
-            
-        #create new identity for device
-        deviceNewIdentity.append(deviceParameters["category"])
-        deviceNewIdentity.append(deviceParameters["id"])
-            
-        #generate content
-        content = {}
-        content["deviceNewIdentity"] = deviceNewIdentity.toUri()
-        content["controllerIdentity"] = self._identity
-
-        #get public key of controller
-        pKeyName = self._identityManager.getDefaultKeyNameForIdentity(self._identityManager.getDefaultIdentity())
-        pKey = self._identityManager.getPublicKey(pKeyName)
-
-        pKeyInfo = content["controllerPublicKey"] = {}
-        pKeyInfo["keyName"] = pKeyName.toUri()
-        pKeyInfo["keyType"] = pKey.getKeyType()
-        pKeyInfo["publicKeyDer"] = pKey.getKeyDer().toRawStr()
-        dump("Sent content : ",content)
-              
-        #TODO generate signature for data
-            
-        #generate data package
-        data = Data(interestName)
-        data.setContent(json.dumps(content,encoding="latin-1"))
-        #data.setSignature(signature)
-        encodedData = data.wireEncode()
-        transport.send(encodedData.toBuffer())
+    
 
 
     def onCertificateRequest(self, prefix, interest, transport, registeredPrefixId):
-        interestName = interest.getName()
-        dump("interest name : ",interestName)
+        if (self._hmacHelper.verifyInterest(interest)):
+            self.log.info("certificate request interest verified")
+            interestName = interest.getName()
+            dump("interest name : ",interestName)
+            
+            keyName = interestName[:3]
+            keyId = interestName.get(4)
+            keyName.append(keyId)
+            keyInfo = json.loads(interestName.get(5).getValue().toRawStr(),encoding="latin-1")
+            keyType = keyInfo['keyType']
+            keyDer = Blob().fromRawStr(keyInfo['keyDer'])
+
+            #dump("keyname: ",keyName)
+            dump("keyType ",keyInfo['keyType'])
+            dump("keyDer string",keyInfo['keyDer'])
+            dump("keyDer",keyDer)
+
+            #device and controller are on one mechine, so it needs to be done.
+            self._identityManager.setDefaultIdentity(Name(self._identity))
+            try:
+                self._identityStorage.addKey(keyName, keyType, keyDer)
+            except SecurityException:
+                dump("The public key for device already exists ")
+
+            signedCertificate = self._identityManager._generateCertificateForKey(keyName)
+            self._keyChain.sign(signedCertificate, self._identityManager.getDefaultCertificateName())
+            self._identityManager.addCertificate(signedCertificate)
+            #self._hmacHelper.signData()
+
+            #encodedData = signedCertificate.wireEncode()
+            #transport.send(encodedData.toBuffer())
+	    self.sendData(signedCertificate,transport,sign=False)
+
+	    self.log.info("Certificate sent back : {}".format(signedCertificate.__str__))
+	    print(signedCertificate)
+        else:
+            self.log.info("certificate request interest not verified")
         
-        keyName = interestName[:3]
-        keyId = interestName.get(4)
-        keyName.append(keyId)
-        keyInfo = json.loads(interestName.get(5).getValue().toRawStr(),encoding="latin-1")
-        keyType = keyInfo['keyType']
-        keyDer = Blob().fromRawStr(keyInfo['keyDer'])
-
-        dump("keyname: ",keyName)
-        dump("keyType ",keyInfo['keyType'])
-        dump("keyDer string",keyInfo['keyDer'])
-        dump("keyDer",keyDer)
-
-        #device and controller are on one mechine, so it needs to be done.
-        self._identityManager.setDefaultIdentity(Name(self._identity))
-        try:
-            self._identityStorage.addKey(keyName, keyType, keyDer)
-        except SecurityException:
-            dump("The public key for device already exists ")
-
-        signedCertificate = self._identityManager._generateCertificateForKey(keyName)
-        self._keyChain.sign(signedCertificate, self._identityManager.getDefaultCertificateName())
-        self._identityManager.addCertificate(signedCertificate)
-        
-        encodedData = signedCertificate.wireEncode()
-        transport.send(encodedData.toBuffer())
 
 
     def onRegisterFailed(self, prefix):
@@ -154,26 +177,32 @@ class Controller(BaseNode):
                 dump("generated new KSK certificate ", newCert)
                 self._identityManager.addCertificateAsIdentityDefault(newCert)
 
-        
+        #self.face.setCommandSigningInfo(self._keyChain, self.getDefaultCertificateName())
         #self.face.registerPrefix(self._prefix, self.onInterest, self.onRegisterFailed)
+        
+        
 
 
 if __name__ == '__main__':
 
     controller = Controller("default.conf")
+    #controller.start()
     controller.beforeLoopStart()
+    
 
     face = Face()
-    face.setCommandSigningInfo(controller._keyChain, controller._keyChain.getDefaultCertificateName())
-    dump("Register prefix : ", controller._prefix)
-    face.registerPrefix(controller._prefix, controller.onInterest, controller.onRegisterFailed)
+    controller.setFace(face)
 
+    face.setCommandSigningInfo(controller._keyChain, controller.getDefaultCertificateName())
+    face.registerPrefix(controller._prefix, controller.onInterest, controller.onRegisterFailed)
+    dump("Register prefix : ",controller._prefix)
     while True:
         face.processEvents()
-        # We need to sleep for a few milliseconds so we don't use 100% of the CPU.
-        time.sleep(0.01)
+	time.sleep(0.05)
 
     face.shutdown()
+
+
 
 
     
