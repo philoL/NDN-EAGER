@@ -178,7 +178,7 @@ class Controller(BaseNode):
                 self._identityManager.addCertificateAsIdentityDefault(newCert)
 
         #self.face.setCommandSigningInfo(self._keyChain, self.getDefaultCertificateName())
-        #self.face.registerPrefix(self._prefix, self.onInterest, self.onRegisterFailed)
+        self.face.registerPrefix(self._prefix, self.onInterest, self.onRegisterFailed)
         
         
 
@@ -186,21 +186,21 @@ class Controller(BaseNode):
 if __name__ == '__main__':
 
     controller = Controller("default.conf")
-    #controller.start()
-    controller.beforeLoopStart()
+    controller.start()
+    #controller.beforeLoopStart()
     
 
-    face = Face()
-    controller.setFace(face)
+    #face = Face()
+    #controller.setFace(face)
 
-    face.setCommandSigningInfo(controller._keyChain, controller.getDefaultCertificateName())
-    face.registerPrefix(controller._prefix, controller.onInterest, controller.onRegisterFailed)
-    dump("Register prefix : ",controller._prefix)
-    while True:
-        face.processEvents()
-	time.sleep(0.05)
+    #face.setCommandSigningInfo(controller._keyChain, controller.getDefaultCertificateName())
+    #face.registerPrefix(controller._prefix, controller.onInterest, controller.onRegisterFailed)
+    #dump("Register prefix : ",controller._prefix)
+    #while True:
+    #    face.processEvents()
+#	time.sleep(0.05)
 
-    face.shutdown()
+ #   face.shutdown()
 
 
 
