@@ -159,25 +159,14 @@ class Controller(BaseNode):
             defaultIdentityName = self._identityManager.getDefaultIdentity()
         except:
             defaultIdentityExists = False
-            
 
-        #dump(self._identityManager.getDefaultKeyNameForIdentity(self._identity))
         if not defaultIdentityExists or self._identityManager.getDefaultIdentity() != identityName:
             #make one
-            dump("Set default identity: ",identityName)
-            #self._identityManager.createIdentityAndCertificate(identityName)
-            self._identityStorage.addIdentity(identityName)
-            self._identityManager.setDefaultIdentity(identityName)
+            dump("Create identity and certificate for identity name: ",identityName)
+            self._keyChain.createIdentityAndCertificate(identityName)
+       	    self._identityManager.setDefaultIdentity(identityName)
 
-            try:
-                self._identityManager.getDefaultKeyNameForIdentity(identityName)
-            except SecurityException:
-                newKey = self._identityManager.generateRSAKeyPairAsDefault(Name(self._identity), isKsk=True)
-                newCert = self._identityManager.selfSign(newKey)
-                dump("generated new KSK certificate ", newCert)
-                self._identityManager.addCertificateAsIdentityDefault(newCert)
-
-        #self.face.setCommandSigningInfo(self._keyChain, self.getDefaultCertificateName())
+	self.face.setCommandSigningInfo(self._keyChain, self.getDefaultCertificateName())
         self.face.registerPrefix(self._prefix, self.onInterest, self.onRegisterFailed)
         
         
