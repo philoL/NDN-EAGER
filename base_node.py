@@ -1,8 +1,7 @@
-
 # -*- Mode:python; c-file-style:"gnu"; indent-tabs-mode:nil -*- */
 #
 # Copyright (C) 2014 Regents of the University of California.
-# Author: Adeola Bannis <thecodemaiden@gmail.com>
+# Author: Teng Liang <philoliang2011@gmail.com>
 # 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as published by
@@ -17,6 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # A copy of the GNU General Public License is in the file COPYING.
+
 import logging
 import time
 import sys
