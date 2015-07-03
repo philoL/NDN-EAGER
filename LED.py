@@ -22,6 +22,8 @@ This module gives an example of LED instance
 """
 
 from device import Device
+import RPi.GPIO as GPIO
+from pyndn import Data
 
 class LED(Device):
 
@@ -31,9 +33,40 @@ class LED(Device):
         self.addCommands(['turnOn','turnOff','readStatus'])
 
     def turnOn(self, interest, transport):
-        print("Function turn on excuted.")	    
+        GPIO.setmode(GPIO.BCM)
+        GPIO.cleanup()
+        GPIO.setup(17,GPIO.OUT)        	    
+        GPIO.setup(16,GPIO.OUT) 
+        GPIO.setup(21,GPIO.OUT)
+        print("Command turnOn is excuted, the light is on.")
 
+        GPIO.output(17,GPIO.HIGH)
+        GPIO.output(16,GPIO.HIGH)
+        GPIO.output(21,GPIO.HIGH)
 
+        
+        data = Data(interest.getName())
+        data.setContent("success")
+        self.sendData(data, transport, sign=False)
+        print("msg success sent back")
+  
+    def turnOff(self, interest, transport):
+        GPIO.setmode(GPIO.BCM)
+        GPIO.cleanup()
+        GPIO.setup(17,GPIO.OUT)        	    
+        GPIO.setup(16,GPIO.OUT) 
+        GPIO.setup(21,GPIO.OUT)
+        print("Command turnOff is excuted, the light is off.")
+
+        GPIO.output(17,GPIO.LOW)
+        GPIO.output(16,GPIO.LOW)
+        GPIO.output(21,GPIO.LOW)
+
+        data = Data(interest.getName())
+        data.setContent("success")
+        self.sendData(data, transport, sign=False)
+        print("msg success sent back")
+  
 
 if __name__ == "__main__":
     led = LED()

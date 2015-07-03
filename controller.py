@@ -167,9 +167,9 @@ class Controller(BaseNode):
         dump(deviceProfile) 
 
         #test turn on
-	turnon = Interest(Name("/home/sensor/LED/T99999990/turnOn"))
-	dump("expressInterest: ",turnon.toUri())
-	self.face.expressInterest(turnon, self.onProfile, self.onTimeout)
+	#turnon = Interest(Name("/home/sensor/LED/T99999990/turnOn"))
+	#dump("expressInterest: ",turnon.toUri())
+	#self.face.expressInterest(turnon, self.onProfile, self.onTimeout)
     
 
 

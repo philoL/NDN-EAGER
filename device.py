@@ -125,10 +125,10 @@ class Device(BaseNode):
             self.log.info("Bootstrap data is not verified")
     
     def addCommands(self,commands):
-	self._commands += commands
+        self._commands += commands
 
     def excuteCommand(self, command, interest, transport):
-	getattr(self,command)(interest,transport)
+        getattr(self,command)(interest,transport)
 
     def beforeLoopStart(self):
         #self.face.registerPrefix('/home', self.onInterest, self.onRegisterFailed)
@@ -140,19 +140,19 @@ class Device(BaseNode):
 
     def onBootstrapTimeout(self, interest):
         self._callbackCount += 1
-	self.expressBootstrapInterest()
+        self.expressBootstrapInterest()
         dump("Time out for bootstrap interest, send again", interest.getName().toUri())
 
 
     def onInterest(self, prefix, interest, transport, registeredPrefixId):
         interestName = interest.getName()
         dump("Received interest: ",interestName.toUri())
-	try:
-	    command = interestName.get(4).toEscapedString()
-	    dump("command: ",command)
-	    dump("command list: ",self._commands)
+        try:
+            command = interestName.get(4).toEscapedString()
+            dump("command: ",command)
+            dump("command list: ",self._commands)
         except:
-	    pass
+            pass
 
         if ("profile" in interestName.toUri()):
             self.onProfileRequest(prefix, interest, transport, registeredPrefixId)
@@ -207,7 +207,7 @@ class Device(BaseNode):
         dump("OnCertificateData : ",data)
    
     def onRegisterFailed(self, prefix):
-	dump("Register failed for prefix", prefix.toUri())
+        dump("Register failed for prefix", prefix.toUri())
 
 
 
