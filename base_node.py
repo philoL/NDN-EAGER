@@ -24,13 +24,13 @@ This module defines BaseNode class, which contains methods/attributes common to 
 import logging
 import time
 import sys
-
 import random
 
-from pyndn import Name, Face, Interest, Data, ThreadsafeFace
-from pyndn.security.policy import ConfigPolicyManager
+from pyndn import Name, Face, Interest, Data
+from pyndn.threadsafe_face import ThreadsafeFace
 from pyndn.security import KeyChain
 from pyndn.security.identity import IdentityManager, BasicIdentityStorage
+from pyndn.security.policy import NoVerifyPolicyManager, ConfigPolicyManager
 from pyndn.security.security_exception import SecurityException
 
 from access_control_manager import AccessControlManager    
@@ -53,9 +53,12 @@ class BaseNode(object):
         self._identityStorage = BasicIdentityStorage()
         self._identityManager = IdentityManager(self._identityStorage)
 
-        #self._policyManager = ConfigPolicyManager(configFileName)
-        # hopefully there is some private/public key pair available
-        #self._keyChain = KeyChain(self._identityManager,self._policyManager)
+        if configFileName:
+            self._policyManager = ConfigPolicyManager(configFileName)
+        else:
+            self._policyManager = NoVerifyPolicyManager()
+
+        self._keyChain = KeyChain(self._identityManager,self._policyManager)
 
         self._registrationFailures = 0
         self._prepareLogging()
@@ -64,10 +67,10 @@ class BaseNode(object):
         self._instanceSerial = None
 
         self._bootstrapPrefix = '/home/controller/bootstrap'
-	self._serviceProfileList = []
-	self._commmandList = []
-	self._protocolList = []
-	
+        self._serviceProfileList = []
+        self._commmandList = []
+        self._protocolList = []
+ 
     def getSerial(self):
         """
          Since you may wish to run two nodes on a Raspberry Pi, each
@@ -91,37 +94,7 @@ class BaseNode(object):
     def addProtocols(self,protocols):
         pass
 
-"""
-Logging
-"""
-    def _prepareLogging(self):
-        self.log = logging.getLogger(str(self.__class__))
-        self.log.setLevel(logging.DEBUG)
-        logFormat = "%(asctime)-15s %(name)-20s %(funcName)-2s (%(levelname)-2s):\t%(message)s"
-        self._console = logging.StreamHandler()
-        self._console.setFormatter(logging.Formatter(logFormat))
-        self._console.setLevel(logging.INFO)
-        # without this, a lot of ThreadsafeFace errors get swallowed up
-        logging.getLogger("trollius").addHandler(self._console)
-        self.log.addHandler(self._console)
 
-    def setLogLevel(self, level):
-        """
-        Set the log level that will be output to standard error
-        :param level: A log level constant defined in the logging module (e.g. logging.INFO) 
-        """
-        self._console.setLevel(level)
-
-    def getLogger(self):
-        """
-        :return: The logger associated with this node
-        :rtype: logging.Logger
-        """
-        return self.log
-
-"""
-Startup and shutdown
-"""
     def beforeLoopStart(self):
         """
         Called before the event loop starts.
@@ -136,36 +109,18 @@ Startup and shutdown
         """
         self.log.info("Starting up")
         self.loop = asyncio.get_event_loop()
-        self.face = ThreadsafeFace(self.loop, '')
+        self.face = ThreadsafeFace(self.loop, 'localhost')
        
         self._keyChain.setFace(self.face)
-
-        self._isStopped = False
-        self.face.stopWhen(lambda:self._isStopped)
-        
         self.beforeLoopStart()
 
-        self.face.setCommandSigningInfo(self._keyChain, self.getDefaultCertificateName())
+        self.face.setCommandSigningInfo(self._keyChain, self._keyChain.getDefaultCertificateName())
 
         try:
             self.loop.run_forever()
-        except KeyboardInterrupt:
-            pass
         except Exception as e:
             self.log.exception(e, exc_info=True)
-        finally:
-            self._isStopped = True
 
-    def stop(self):
-        """
-        Stops the node, taking it off the network
-        """
-        self.log.info("Shutting down")
-        self._isStopped = True 
-        
-"""
-Data handling
-"""
     def createACK(self):
         pass
   
@@ -191,10 +146,11 @@ Data handling
             self.signData(data)
         transport.send(data.wireEncode().buf())
 
-"""
-Failure handling
- 
-"""
+    """
+    Failure
+
+    """
+
     def onRegisterFailed(self, prefix):
         """
         Called when the node cannot register its name with the forwarder
@@ -215,6 +171,40 @@ Failure handling
         """
         self.log.info("Received invalid" + dataOrInterest.getName().toUri())
 
+
+
+
+    """
+    Logging
+    """
+    
+    def _prepareLogging(self):
+        self.log = logging.getLogger(str(self.__class__))
+        self.log.setLevel(logging.DEBUG)
+        logFormat = "%(asctime)-15s %(name)-20s %(funcName)-2s (%(levelname)-2s):\t%(message)s"
+        self._console = logging.StreamHandler()
+        self._console.setFormatter(logging.Formatter(logFormat))
+        self._console.setLevel(logging.INFO)
+        # without this, a lot of ThreadsafeFace errors get swallowed up
+        logging.getLogger("trollius").addHandler(self._console)
+        self.log.addHandler(self._console)
+
+    def setLogLevel(self, level):
+        """
+        Set the log level that will be output to standard error
+        :param level: A log level constant defined in the logging module (e.g. logging.INFO) 
+        """
+        self._console.setLevel(level)
+
+    def getLogger(self):
+        """
+        :return: The logger associated with this node
+        :rtype: logging.Logger
+        """
+        return self.log
+
+
+
     @staticmethod
     def getDeviceSerial():
         """
@@ -227,5 +217,3 @@ Failure handling
             for line in f:
                 if line.startswith('Serial'):
                     return line.split(':')[1].strip()
-
-

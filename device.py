@@ -24,7 +24,8 @@ This module defines Device class, which contains core modules of end device, inc
 
 import time
 import json
-from pyndn import Name, Face, Interest, Data, ThreadsafeFace
+from pyndn import Name, Face, Interest, Data
+from pyndn.threadsafe_face import ThreadsafeFace
 from pyndn import KeyLocator, KeyLocatorType
 from base_node import BaseNode
 from hmac_helper import HmacHelper 
@@ -42,8 +43,8 @@ def dump(*list):
     print(result)
 
 class Device(BaseNode):
-    def __init__(self):
-        super(Device, self).__init__()
+    def __init__(self,configFileName=None):
+        super(Device, self).__init__(configFileName)
         
         self._deviceSerial = self.getSerial()
         self._callbackCount = 0
@@ -64,11 +65,7 @@ class Device(BaseNode):
         bootstrapName.append(json.dumps(deviceParameters))
 
         bootstrapInterest = Interest(bootstrapName)
-        bootstrapInterest.setInterestLifetimeMilliseconds(5000)
-        #bootstrapKeyLocator = KeyLocator()
-        #bootstrapKeyLocator.setType(KeyLocatorType.KEY_LOCATOR_DIGEST)
-        #bootstrapKeyLocator.setKeyData(self._symKey)
-        #bootstrapInterest.setKeyLocator(bootstrapKeyLocator)
+        bootstrapInterest.setInterestLifetimeMilliseconds(3000)
         self._hmacHelper.signInterest(bootstrapInterest)
 
         dump("Express bootstrap interest : ",bootstrapInterest.toUri())
@@ -122,7 +119,7 @@ class Device(BaseNode):
 
 
     def beforeLoopStart(self):
-        self.face.registerPrefix('/home', self.onInterest, self.onRegisterFailed)
+        #self.face.registerPrefix('/home', self.onInterest, self.onRegisterFailed)
         self.expressBootstrapInterest()
         
     def onTimeout(self, interest):

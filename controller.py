@@ -37,7 +37,7 @@ def dump(*list):
     print(result)
 
 class Controller(BaseNode):
-    def __init__(self,configFileName):
+    def __init__(self,configFileName=None):
         super(Controller, self).__init__(configFileName=configFileName)
         self._responseCount = 0
         self._symmetricKey = "symmetricKeyForBootstrapping"
@@ -45,6 +45,8 @@ class Controller(BaseNode):
         self._identity = "/home/controller/id999"
         self._hmacHelper = HmacHelper(self._symmetricKey)
 
+    def setFace(self,face):
+        self.face = face
 
     def onInterest(self, prefix, interest, transport, registeredPrefixId):
         self._responseCount += 1
@@ -164,7 +166,7 @@ class Controller(BaseNode):
             self._keyChain.createIdentityAndCertificate(identityName)
        	    self._identityManager.setDefaultIdentity(identityName)
 
-	self.face.setCommandSigningInfo(self._keyChain, self.getDefaultCertificateName())
+	self.face.setCommandSigningInfo(self._keyChain, self._keyChain.getDefaultCertificateName())
         self.face.registerPrefix(self._prefix, self.onInterest, self.onRegisterFailed)
         
         
