@@ -19,6 +19,7 @@
 from pyndn.encoding import WireFormat
 from pyndn.util import Blob
 from pyndn.digest_sha256_signature import DigestSha256Signature
+from pyndn.sha256_with_rsa_signature import Sha256WithRsaSignature
 from pyndn import Data, KeyLocatorType, Interest, Name
 from hashlib import sha256
 from random import SystemRandom
@@ -35,6 +36,9 @@ class HmacHelper(object):
             self.wireFormat = WireFormat.getDefaultWireFormat()
         else:
             self.wireFormat = wireFormat
+
+    def setKey(self, raw_key):
+	self.key = sha256(raw_key).digest()
 
     @classmethod
     def generatePin(cls):
@@ -63,11 +67,12 @@ class HmacHelper(object):
         return signature
 
     def signData(self, data, keyName=None, wireFormat=None):
-        data.setSignature(DigestSha256Signature())
+        #data.setSignature(DigestSha256Signature())
+        data.setSignature(Sha256WithRsaSignature())
         s = data.getSignature()
 
-        #s.getKeyLocator().setType(KeyLocatorType.KEYNAME)
-        #s.getKeyLocator().setKeyName(keyName)
+        s.getKeyLocator().setType(KeyLocatorType.KEYNAME)
+        s.getKeyLocator().setKeyName(keyName)
 
         if wireFormat is None:
             wireFormat = WireFormat.getDefaultWireFormat()
@@ -101,9 +106,9 @@ class HmacHelper(object):
         if wireFormat is None:
             wireFormat = WireFormat.getDefaultWireFormat()
 
-        s = DigestSha256Signature()
-        #s.getKeyLocator().setType(KeyLocatorType.KEYNAME)
-        #s.getKeyLocator().setKeyName(keyName)
+        s = Sha256WithRsaSignature()
+        s.getKeyLocator().setType(KeyLocatorType.KEYNAME)
+        s.getKeyLocator().setKeyName(keyName)
 
         interestName = interest.getName()
         interestName.append(nonceValue).append(timestampValue)

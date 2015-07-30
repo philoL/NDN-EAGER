@@ -166,6 +166,13 @@ class Controller(BaseNode):
         deviceProfile = json.loads(data.getContent().toRawStr(), encoding="latin-1")
         dump(deviceProfile) 
 
+        #test turn on
+	turnon = Interest(Name("/home/sensor/LED/T99999990/turnOn"))
+	dump("expressInterest: ",turnon.toUri())
+	self.face.expressInterest(turnon, self.onProfile, self.onTimeout)
+    
+
+
     def onTimeout(self, interest):
         dump("Time out for interest", interest.getName().toUri()) 
 

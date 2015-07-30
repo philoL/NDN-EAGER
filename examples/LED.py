@@ -20,3 +20,21 @@
 """
 This module gives an example of LED instance
 """
+
+from device import Device
+
+class LED(Device):
+
+    def __init__(self,configFileName=None):
+        super(LED, self).__init__(configFileName)
+
+        self.addCommands(['turnOn','turnOff','readStatus'])
+
+    def turnOn(self, interest, transport):
+        print("Function turn on excuted.")	    
+
+
+
+if __name__ == "__main__":
+    led = LED()
+    led.start()

@@ -32,7 +32,7 @@ from hmac_helper import HmacHelper
 from pyndn.security.security_exception import SecurityException
 from pyndn.util import Blob
 from device_profile import  DeviceProfile
-
+from access_control_manager import AccessControlManager
 try:
     import asyncio
 except ImportError:
@@ -53,7 +53,8 @@ class Device(BaseNode):
         self._callbackCount = 0
         self._symKey = "symmetricKeyForBootstrapping"
         self._hmacHelper = HmacHelper(self._symKey)
-
+        self._commands = []
+	self._accessControlManager = AccessControlManager()
 
     def expressBootstrapInterest(self):
         
@@ -79,7 +80,7 @@ class Device(BaseNode):
 
         if (self._hmacHelper.verifyData(data)):
             self.log.info("Bootstrap data is verified")
-            content = json.loads(data.getContent().toRawStr(), encoding="latin-1")
+	    content = json.loads(data.getContent().toRawStr(), encoding="latin-1")
             deviceNewIdentity = Name(content["deviceNewIdentity"])
             controllerIdentity = Name(content["controllerIdentity"])
             controllerPublicKeyInfo = content["controllerPublicKey"]
@@ -122,7 +123,12 @@ class Device(BaseNode):
             #self.requestCertificate(defaultKeyName)
         else:
             self.log.info("Bootstrap data is not verified")
-           
+    
+    def addCommands(self,commands):
+	self._commands += commands
+
+    def excuteCommand(self, command, interest, transport):
+	getattr(self,command)(interest,transport)
 
     def beforeLoopStart(self):
         #self.face.registerPrefix('/home', self.onInterest, self.onRegisterFailed)
@@ -141,10 +147,18 @@ class Device(BaseNode):
     def onInterest(self, prefix, interest, transport, registeredPrefixId):
         interestName = interest.getName()
         dump("Received interest: ",interestName.toUri())
+	try:
+	    command = interestName.get(4).toEscapedString()
+	    dump("command: ",command)
+	    dump("command list: ",self._commands)
+        except:
+	    pass
 
         if ("profile" in interestName.toUri()):
             self.onProfileRequest(prefix, interest, transport, registeredPrefixId)
-    
+        elif (command in self._commands):
+            self.excuteCommand(command, interest, transport)
+
     def onProfileRequest(self, prefix, interest, transport, registeredPrefixId):
         #TODO verification
        
