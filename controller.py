@@ -209,20 +209,7 @@ if __name__ == '__main__':
 
     controller = Controller("default.conf")
     controller.start()
-    #controller.beforeLoopStart()
-    
 
-    #face = Face()
-    #controller.setFace(face)
-
-    #face.setCommandSigningInfo(controller._keyChain, controller.getDefaultCertificateName())
-    #face.registerPrefix(controller._prefix, controller.onInterest, controller.onRegisterFailed)
-    #dump("Register prefix : ",controller._prefix)
-    #while True:
-    #    face.processEvents()
-#	time.sleep(0.05)
-
- #   face.shutdown()
 
 
 
