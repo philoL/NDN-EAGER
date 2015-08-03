@@ -40,7 +40,9 @@ class DHT22(Device):
         self.pin = 18
 
     def status(self, interest, transport):
-        h, t = Adafruit_DHT.readretry(self.sensor, self.pin)
+        h, t = Adafruit_DHT.read_retry(self.sensor, self.pin)
+        h = round(h,2)
+        t = round(t,2)
         result = {}
         result['temperature'] = str(t)
         result['humidity'] = str(h)

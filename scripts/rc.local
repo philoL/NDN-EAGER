@@ -1,0 +1,65 @@
+#!/bin/bash
+#
+# rc.local
+#
+# This script is executed at the end of each multiuser runlevel.
+# Make sure that the script will "exit 0" on success or any other
+# value on error.
+#
+# In order to enable or disable this script just change the execution
+# bits.
+#
+# By default this script does nothing.
+
+#ssid=Raspi_NDN
+
+#createAdHocNetwork(){
+#  echo "Creating network " $ssid
+#  /sbin/ifconfig wlan0 down
+#  #/usr/local/sbin/iwconfig wlan0 mode ad-hoc essid $ssid
+#  /sbin/ifconfig wlan0 192.168.16.1 netmask 255.255.255.0 up
+#  #/usr/sbin/dhcpd wlan0
+#  sudo service hostapd start
+#  sudo service isc-dhcp-server start
+#  echo "Network ready"
+#}
+
+echo "===================="
+echo "RPi NDN Network Conf"
+echo "===================="
+
+ifconfig eth0 up
+ifconfig wlan0 up
+# Print the IP address
+_IP=$(hostname -I) || true
+if [ "$_IP" ]; then
+  printf "My IP address is %s\n" "$_IP"
+fi
+
+
+#if /usr/local/sbin/iwlist wlan0 scan | grep $ssid > /dev/null
+#then
+#  ifconfig wlan0 down
+#  dhclient -r wlan0
+#  echo "Starting supplicant for WPA/WPA2, SSID: " $ssid
+#  wpa_supplicant -dd -iwlan0 -c /etc/wpa_supplicant/wpa_supplicant.conf 2>&1 | logger -t wpa_supplicant &
+#  ifconfig wlan0 up
+#  sleep 4
+#  echo "Obtaining DHCP lease"
+#  if dhclient -1 wlan0
+#  then
+#    echo "Connected"
+#    connected=true
+#  else
+#    echo "DHCP server did not respond with lease"
+#    wpa_cli terminate
+#  fi
+#else
+#   echo "Did not find " $ssid
+#fi
+
+#if [ -z $connected ]; then
+#  createAdHocNetwork
+#fi  
+
+exit 0
