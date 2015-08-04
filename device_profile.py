@@ -20,11 +20,20 @@
 """
 This module defines the DeviceProfile class with holds descriptors of device
 """
+from pyndn import Name
 
 class DeviceProfile(object):   
     
     def __init__(self, prefix = None, location = None, manufacturer = None, category = None, type_ = None, model = None, serialNumber = None, serviceProfileList = None):
-        '''initialize device profile.'''
+        '''initialize device profile.
+        param Name prefix: device's prefix
+        param str location: device's location 
+        param str manufacturer: device's manufacturer
+        param str category: device's category
+        param str type: device's type
+        param str model: device's model
+        parma str lsit serviceProfileList: the list of service profile names 
+        '''
         self._prefix = prefix
         self._location = location
         self._manufacturer = manufacturer
@@ -39,7 +48,7 @@ class DeviceProfile(object):
         self._metadata = ['prefix', 'location', 'manufacturer', 'category', 'type', 'model', 'serialNumber', 'serviceProfileList']
  
     def __str__(self):
-        info ='prefix: '+ self._prefix + '\nlocation: '+ self._location + '\nmanufacturer: ' + self._manufacturer + '\ncategory: ' + self._category + '\ntype: ' + self._type + '\nserial number: ' + self._serialNumber + '\nservice profile list: '
+        info ='prefix: '+ self._prefix.toUri() + '\nlocation: '+ str(self._location) + '\nmanufacturer: ' + str(self._manufacturer) + '\ncategory: ' + str(self._category) + '\ntype: ' + str(self._type) + '\nserial number: ' + str(self._serialNumber) + '\nservice profile list: '
         info += ', '.join(self._serviceProfileList)
         info += '\nmetadata: ' 
         info += ', '.join(self._metadata)

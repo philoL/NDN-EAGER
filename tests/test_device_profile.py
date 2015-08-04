@@ -1,4 +1,5 @@
 from device_profile import DeviceProfile
+from pyndn import Name
 
 def readProfile(profile):
     print '   prefix: ', profile.getPrefix()
@@ -19,7 +20,7 @@ def test():
     readProfile(profile)
     
     print "set prefix to '/home/sensor/LED/23'..."
-    profile.setPrefix('/home/sensor/LED/23')
+    profile.setPrefix(Name('/home/sensor/LED/23'))
 
     print "set location to 'Alice's bedroom'..."
     profile.setLocation('Alice\'s bedroom')
