@@ -20,11 +20,11 @@
 import unittest as ut
 import os.path
 from pyndn import Name
-from device_user_access_storage import DeviceUserAccessStorage
+from device_storage import DeviceStorage
 from device_profile import DeviceProfile
 from hmac_key import HMACKey
 
-class TestStorageMethods(ut.TestCase):
+class TestDeviceStorageMethods(ut.TestCase):
     def setUp(self):
         if not "HOME" in os.environ:
             home = '.'
@@ -37,7 +37,7 @@ class TestStorageMethods(ut.TestCase):
         if os.path.isfile(self.databaseFilePath):
             os.remove(self.databaseFilePath)
         
-        self.storage = DeviceUserAccessStorage()
+        self.storage = DeviceStorage()
 
     def tearDown(self):
         pass
@@ -57,7 +57,7 @@ class TestStorageMethods(ut.TestCase):
                 os.makedirs(dbdir)
        
         filePath = os.path.join(dbdir, 'ndnhome-controller.db')
-        storage2 = DeviceUserAccessStorage(filePath)
+        storage2 = DeviceStorage(filePath)
         self.assertTrue(os.path.isfile(filePath), 'fail to create database file' )
         os.remove(filePath)
     

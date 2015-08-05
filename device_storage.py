@@ -16,7 +16,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # A copy of the GNU General Public License is in the file COPYING.
 """
-DeviceUserAccessStorage implements a basic storage of devices, users and access 
+DeviceStorage implements a basic storage of devices and corresponding commands
 """
 
 import os
@@ -24,6 +24,7 @@ import sqlite3
 from pyndn import Name
 from device_profile import DeviceProfile
 from hmac_key import HMACKey
+
 INIT_DEVICE_TABLE = ["""
 CREATE TABLE IF NOT EXISTS
   Device(
@@ -36,12 +37,12 @@ CREATE TABLE IF NOT EXISTS
       serial_number                  BLOB,
       manufacturer                   BLOB,
       seed_name                      BLOB NOT NULL,
-      seed_sequence                  BLOB NOT NULL,
-      seed_counter                   BLOB NOT NULL,
+      seed_sequence                  INTEGER NOT NULL,
+      seed_counter                   INTEGER NOT NULL,
       seed                           BLOB NOT NULL,
       configuration_token            BLOB NOT NULL,
-      configuration_token_sequence   BLOB NOT NULL,
-      configuration_token_counter    BLOB NOT NULL,
+      configuration_token_sequence   INTEGER NOT NULL,
+      configuration_token_counter    INTEGER NOT NULL,
       
       PRIMARY KEY (id)
   );
@@ -54,8 +55,8 @@ CREATE TABLE IF NOT EXISTS
       device_id                     INTEGER NOT NULL,
       name                          BLOB NOT NULL,
       command_token_name            BLOB NOT NULL,
-      command_token_sequence        BLOB NOT NULL,
-      command_token_counter         BLOB NOT NULL,
+      command_token_sequence        INTEGER NOT NULL,
+      command_token_counter         INTEGER NOT NULL,
       command_token                 BLOB NOT NULL,
       
       PRIMARY KEY(id)
@@ -75,7 +76,7 @@ CREATE TABLE IF NOT EXISTS
   );
 """]
 
-class DeviceUserAccessStorage(object):
+class DeviceStorage(object):
     """
     Create a new DeviceUserStorage to work with an SQLite file.
     :param str databaseFilePath: (optional) The path of the SQLite file. If ommitted, use the default path.
@@ -251,7 +252,7 @@ class DeviceUserAccessStorage(object):
         cursor.execute(operation, (prefix.toUri(),))
         result = cursor.fetchone()
         cursor.close()
-        print result
+        #print result
         if result == None:
             return None
         else:
@@ -277,7 +278,7 @@ class DeviceUserAccessStorage(object):
         cursor.execute(operation, (prefix.toUri(),))
         result = cursor.fetchone()
         cursor.close()
-        print result
+        #print result
         if result == None:
             return None
         else:
@@ -471,7 +472,7 @@ class DeviceUserAccessStorage(object):
             #return None
         cursor.execute(operation, (deviceId,))
         result = cursor.fetchall()                    
-        print result
+        #print result
         commandList = []
         if result == None:
            return commandList 

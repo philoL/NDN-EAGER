@@ -20,7 +20,7 @@
 import sys
 import os
 import sqlite3
-from device_user_access_storage import DeviceUserAccessStorage
+from device_storage import DeviceStorage
 def showDefault(databaseFilePath = None):
     if databaseFilePath == None or databaseFilePath == "":
         if not "HOME" in os.environ:
@@ -35,7 +35,7 @@ def showDefault(databaseFilePath = None):
         databaseFilePath = os.path.join(dbDirectory, 'ndnhome-controller.db')
 
         database =  sqlite3.connect(databaseFilePath)
-        storage = DeviceUserAccessStorage(databaseFilePath)
+        storage = DeviceStorage(databaseFilePath)
         cursor = database.cursor()
         cursor.execute("SELECT id, prefix  FROM Device")
         print 'id:     prefix:                  Commands:                   ServiceProfile:'
@@ -43,11 +43,11 @@ def showDefault(databaseFilePath = None):
             commandResult = storage.getCommandsOfDevice(row[0])
             commandStr =''
             for command in commandResult:
-                commandStr += command[0] + ';'
+                commandStr += command + ';'
             profileResult = storage.getServiceProfilesOfDevice(row[0])
             profileStr=''
             for profile in profileResult:
-                profileStr = profile[0] +';'
+                profileStr = profile +';'
             print '%d    %s    %s    %s' %(row[0], row[1], commandStr, profileStr ) 
             
         cursor.close()

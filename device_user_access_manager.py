@@ -25,14 +25,14 @@ operations related to identity, keys, and certificates.
 import sys
 from pyndn.name import Name
 from device_profile import DeviceProfile
-from device_user_access_storage import DeviceUserAccessStorage
+from device_storage import DeviceStorage
 
 class DeviceUserAccessManager(object):
     """
     Create a new DeviceUserAccessManager
     """
     def __init__(self, databaseFilePath = None):
-        deviceUserAccessStorage = DeviceUserAccessStorage(databaseFilePath)
+        deviceUserAccessStorage = DeviceStorage(databaseFilePath)
         self._deviceUserAccessStorage = deviceUserAccessStorage
     
     def createDevice(self, deviceProfile, seed, configurationToken, commandList = None):

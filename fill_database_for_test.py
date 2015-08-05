@@ -20,7 +20,7 @@
 
 import os.path
 from pyndn import Name
-from device_user_access_storage import DeviceUserAccessStorage
+from device_storage import DeviceStorage
 from device_profile import DeviceProfile
 from hmac_key import HMACKey
 
@@ -42,7 +42,7 @@ class FillDatabaseForTest(object):
         if os.path.isfile(self.databaseFilePath):
             os.remove(self.databaseFilePath)
 
-        self.storage = DeviceUserAccessStorage()
+        self.storage = DeviceStorage()
 
     def fillDatabase(self):
         count = self.count
