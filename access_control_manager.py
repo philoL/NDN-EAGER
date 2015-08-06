@@ -22,6 +22,7 @@ from pyndn.util import Blob
 from pyndn import Data, KeyLocatorType,Interest,Name
 from hashlib import sha256
 import hmac
+from hmac_key import HMACKey
 """
 This module uses access token method to sign, verfy, encrypt and decrypt data/interest. Besides, it generates and updates seed/command access token/access token. 
 
@@ -31,45 +32,48 @@ class AccessControlManager(object):
 
     def __init__(self,  wireFormat=None):
         super(AccessControlManager, self).__init__()
-	self.hmacHelper = HmacHelper("default", wireFormat)
+        self.hmacHelper = HmacHelper("default", wireFormat)
 
 
-    def signInterestWithAccessToken(self, interest, accessTokenName, accessToken):
-	self.hmacHelper.setKey(accessToken)
-        self.hmacHelper.signInterest(interest, accessTokenName)
+    def signInterestWithHMACKey(self, interest, hmacKey):
+        self.hmacHelper.setKey(hmacKey.getKey())
+        self.hmacHelper.signInterest(interest, hmacKey.getName())
+
+
+    def verifyInterestWithHMACKey(self, interest, hmacKey):
+        self.hmacHelper.setKey(hmacKey.getKey())
+        return self.hmacHelper.verifyInterest(interest)
+
+    def signDataWithHMACKey(self, data, hmacKey):
+    	self.hmacHelper.setKey(hmacKey.getKey())
+        self.hmacHelper.signData(data,hmacKey.getName())
+
+    def verifyDataWithHMACKey(self, data, hmacKey):
+        self.hmacHelper.setKey(hmacKey.getKey())
+        return self.hmacHelper.verifyData(data)
 
     def verifyCommandInterestWithSeed(self, interest, seed):
-	#TODO 
-        command = interest.getName().get(4).getValue().toBytes()
-	seedSequence = interest.getName().get(5).getValue().toBytes()
-	commandSequence = interest.getName().get(6).getValue().toBytes()
-        signature = self.hmacHelper.extractInterestSignature(interest)
-	accessTokenName = signature.getKeyLocator().getKeyName()
-        
-	commandTokenName = interest.getName().getPrefix(5).append("token").append(commandSequence)
-	print "command token name: ",commandTokenName.toUri()
-	print "access token name: ",accessTokenName.toUri()
+        """
+        seed is a HMACKey.
+        """
+        try:
+        #try to fetch command, seedSequence and commandSequence
+	    	command = interest.getName().get(4).getValue().toBytes()
+	    	seedSequence = interest.getName().get(5).getValue().toBytes()
+	    	commandSequence = interest.getName().get(6).getValue().toBytes()
+	    	signature = self.hmacHelper.extractInterestSignature(interest)
+	    	accessTokenName = signature.getKeyLocator().getKeyName()
+        except Exception:
+            return False
 
-        commandToken = hmac.new(seed, commandTokenName.toUri(), sha256).digest()
-	accessToken = hmac.new(commandToken, accessTokenName.toUri(), sha256).digest()
-        
-	self.hmacHelper.setKey(accessToken)
-	return self.hmacHelper.verifyInterest(interest)
 
-if __name__ == '__main__':
-    a = AccessControlManager()
-    seed = sha256("seed").digest()
-    interest = Interest(Name("/home/sensor/LED/T12321/turnOn/1/2"))
-    ctn = "/home/sensor/LED/T12321/turnOn/token/2"
-    atn = ctn+"/user/Teng/07"
-    print ctn
-    print atn
-    ct = hmac.new(seed,ctn,sha256).digest()
-    at = hmac.new(ct,atn,sha256).digest()
+        commandTokenName = interest.getName().getPrefix(5).append("token").append(commandSequence)
+        commandToken = hmac.new(seed.getKey(), commandTokenName.toUri(), sha256).digest()
+        accessToken = hmac.new(commandToken, accessTokenName.toUri(), sha256).digest()
+        self.hmacHelper.setKey(accessToken)
 
-    a.signInterestWithAccessToken(interest,atn,at)
+        return self.hmacHelper.verifyInterest(interest)
 
-    print a.verifyCommandInterestWithSeed(interest,seed)
 
 
 

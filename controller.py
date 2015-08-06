@@ -23,11 +23,17 @@ import json
 from pyndn import Name, Face, Interest, Data
 from pyndn.key_locator import KeyLocator, KeyLocatorType
 from hmac_helper import HmacHelper 
+from hmac_key import HMACKey
+import hmac 
+from hashlib import sha256
+import hmac
 
 from pyndn.security import KeyChain
 from base_node import BaseNode
 from pyndn.security import SecurityException
 from pyndn.util import Blob
+from device_user_access_manager import DeviceUserAccessManager
+from access_control_manager import AccessControlManager
 
 
 def dump(*list):
@@ -40,54 +46,76 @@ class Controller(BaseNode):
     def __init__(self,configFileName=None):
         super(Controller, self).__init__(configFileName=configFileName)
         self._responseCount = 0
-        self._symmetricKey = "symmetricKeyForBootstrapping"
+
+        self._bootstrapKey = HMACKey(0,0,"default","bootstrap")
         self._prefix = "/home"
         self._identity = "/home/controller/id999"
-        self._hmacHelper = HmacHelper(self._symmetricKey)
 
+        self._accessControlManager = AccessControlManager()
+        self._deviceUserAccessManager = DeviceUserAccessManager()
+        self._deviceDict = {}
+
+        #device dict (deviceProfile, seed, configurationToken, commandList, serviceProfileList)
+        self._newDevice = {}
+        self._newDevice['deviceProfile'] = None
+        self._newDevice['seed'] = None
+        self._newDevice['configurationToken'] = None
+        self._newDevice['commandList'] = []
 
     def onInterest(self, prefix, interest, transport, registeredPrefixId):
         self._responseCount += 1
         interestName = interest.getName()
-        dump("received interest : ",interestName.toUri())
+        dump("Received interest : ",interestName.toUri())
 
         #for bootstrap interest
-        #if(interestName.toUri().startswith(self._bootstrapPrefix) and interest.getKeyLocator().getKeyData().toRawStr() == self._symmetricKey):
-        if ( interestName.toUri().startswith(self._bootstrapPrefix) ):
-            dump("Received bootstrap interest")
-	    self.onBootstrapInterest(prefix, interest, transport, registeredPrefixId)   
+        if ( "bootstrap" in interestName.toUri()):
+            dump("It is a bootstrap interest")
+            self.onBootstrapInterest(prefix, interest, transport, registeredPrefixId)   
         
         elif ("KEY" in interestName.toUri() and "ID-CERT" in interestName.toUri()):
-            dump("Reveived certificate request interest")
+            dump("It is a certificate request interest")
             self.onCertificateRequest(prefix, interest, transport, registeredPrefixId)
 
 
 
     def onBootstrapInterest(self, prefix, interest, transport, registeredPrefixId):
-        if (self._hmacHelper.verifyInterest(interest)):
-            self.log.info("Bootstrap interest verified")
+        
+        if ( self._accessControlManager.verifyInterestWithHMACKey(interest, self._bootstrapKey) ):
+            dump("Verified")
             interestName = interest.getName()
             deviceParameters = json.loads(interestName.get(3).getValue().toRawStr())
-            #TODO: register new DEVICE
 
-    
             #create new identity for device
-            deviceNewIdentity = Name("/home")
+            deviceNewIdentity = Name("home")
             deviceNewIdentity.append(deviceParameters["category"])
             deviceNewIdentity.append(deviceParameters["type"])
             deviceNewIdentity.append(deviceParameters["serialNumber"])
-                
-            #TODO seed encryption
-            seed = "seed"
+
             seedSequence = 0
-	    configurationTokenSequence = 0
+            configurationTokenSequence = 0
+            seed = HMACKey(0,0,"seed","seedName")
+
+            if (deviceNewIdentity.toUri() in self._deviceDict.keys()):
+                dump("The device is already registered. No need to add again.")
+            else:
+                dump("Adding the new device...")
+                self._newDevice["seed"] = seed
+
+                #generate configuration token
+                configurationTokenName = self._identity+"/"+str(configurationTokenSequence)
+                configurationTokenKey = hmac.new(seed.getKey(), configurationTokenName, sha256).digest()
+                configurationToken = HMACKey(configurationTokenSequence,0,configurationTokenKey,configurationTokenName)
+
+                self._newDevice["configurationToken"] = configurationToken
 
             #generate content
+            #TODO seed encryption
+
             content = {}
             content["deviceNewIdentity"] = deviceNewIdentity.toUri()
             content["controllerIdentity"] = self._identity
-            content["seed"] = seed
-	    content["seedSequence"] = seedSequence
+            content["seed"] = seed.getKey()
+            content["seedSequence"] = seedSequence
             content["configurationTokenSequence"] = configurationTokenSequence
 
             #get public key of controller
@@ -98,13 +126,14 @@ class Controller(BaseNode):
             pKeyInfo["keyName"] = pKeyName.toUri()
             pKeyInfo["keyType"] = pKey.getKeyType()
             pKeyInfo["publicKeyDer"] = pKey.getKeyDer().toRawStr()
+
             dump("Sent content : ",content)
                   
                 
             #generate data package
             data = Data(interestName)
             data.setContent(json.dumps(content,encoding="latin-1"))
-	    self._hmacHelper.signData(data)
+            self._accessControlManager.signDataWithHMACKey(data,self._bootstrapKey)
             self.sendData(data,transport,sign=False)
            
             #request for device profile
@@ -115,7 +144,7 @@ class Controller(BaseNode):
 
     def onCertificateRequest(self, prefix, interest, transport, registeredPrefixId):
         if (self._hmacHelper.verifyInterest(interest)):
-            self.log.info("certificate request interest verified")
+            dump("certificate request interest verified")
             interestName = interest.getName()
             dump("interest name : ",interestName)
             
@@ -141,36 +170,43 @@ class Controller(BaseNode):
             signedCertificate = self._identityManager._generateCertificateForKey(keyName)
             self._keyChain.sign(signedCertificate, self._identityManager.getDefaultCertificateName())
             self._identityManager.addCertificate(signedCertificate)
-            #self._hmacHelper.signData()
 
-            #encodedData = signedCertificate.wireEncode()
-            #transport.send(encodedData.toBuffer())
-	    self.sendData(signedCertificate,transport,sign=False)
+            self.sendData(signedCertificate,transport,sign=False)
 
-	    self.log.info("Certificate sent back : {}".format(signedCertificate.__str__))
+            dump("Certificate sent back : {}".format(signedCertificate.__str__))
 	    print(signedCertificate)
         else:
             self.log.info("certificate request interest not verified")
         
     def expressProfileRequest(self,deviceName):
-       #TODO add nonce component afterwards
+        
         profileRequest = Interest(deviceName.append("profile"))
         profileRequest.setInterestLifetimeMilliseconds(3000)
         dump("Request device Profile: ", profileRequest.toUri())
+
+        #sign profile request with configuration token
+        self._accessControlManager.signInterestWithHMACKey(profileRequest,self._newDevice['configurationToken'])
         
         self.face.expressInterest(profileRequest, self.onProfile, self.onProfileRequestTimeout)
     
     def onProfile(self, interest, data):
-        dump("Profile received")
-        #TODO verify data using configuration key
-        deviceProfile = json.loads(data.getContent().toRawStr(), encoding="latin-1")
-        dump(deviceProfile) 
+        dump("Profile received, verifying ...")
+        if ( self._accessControlManager.verifyInterestWithHMACKey(interest, self._newDevice['configurationToken']) ):
+            dump("Verified.")
+            content = json.loads(data.getContent().toRawStr(), encoding="latin-1")
+            self._newDevice['deviceProfile'] = json.loads(content['deviceProfile'], encoding="latin-1")
+            dump("device profile ",self._newDevice['deviceProfile'])
+            self._newDevice['commandList'] = content['commandList']
+            self._deviceDict[self._newDevice['deviceProfile']["prefix"]] = self._newDevice
 
-        #test turn on
-	#turnon = Interest(Name("/home/sensor/LED/T99999990/turnOn"))
-	#dump("expressInterest: ",turnon.toUri())
-	#self.face.expressInterest(turnon, self.onProfile, self.onTimeout)
-    
+            dump("deviceProfile ",self._newDevice['deviceProfile'])
+            dump("commandList ",self._newDevice['commandList'])
+            #add device to DB
+            dump("creating device into DB")
+            #self._deviceUserAccessManager.createDevice(self._newDevice['deviceProfile'],)
+            dump(deviceProfile)
+        else:
+            dump("Not verified.") 
 
 
     def onTimeout(self, interest):
@@ -198,8 +234,8 @@ class Controller(BaseNode):
             dump("Create identity and certificate for identity name: ",identityName)
             self._keyChain.createIdentityAndCertificate(identityName)
        	    self._identityManager.setDefaultIdentity(identityName)
-
-	self.face.setCommandSigningInfo(self._keyChain, self._keyChain.getDefaultCertificateName())
+        
+        self.face.setCommandSigningInfo(self._keyChain, self._keyChain.getDefaultCertificateName())
         self.face.registerPrefix(self._prefix, self.onInterest, self.onRegisterFailed)
         
         

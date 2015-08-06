@@ -134,7 +134,7 @@ class BaseNode(object):
         """
 	pass
 
-    def sendData(self, data, transport, sign=True):
+    def sendData(self, data, transport, sign=False):
         """
         Reply to an interest with a data packet, optionally signing it.
         :param pyndn.Data data: The response data packet

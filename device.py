@@ -33,6 +33,10 @@ from pyndn.security.security_exception import SecurityException
 from pyndn.util import Blob
 from device_profile import  DeviceProfile
 from access_control_manager import AccessControlManager
+from hmac_key import HMACKey
+from hashlib import sha256
+import hmac
+
 try:
     import asyncio
 except ImportError:
@@ -49,12 +53,14 @@ class Device(BaseNode):
         super(Device, self).__init__(configFileName)
         
         #for test
-        self._deviceProfile = DeviceProfile(category = "sensor", type_="LED", serialNumber = "T99999990")
         self._callbackCount = 0
-        self._symKey = "symmetricKeyForBootstrapping"
-        self._hmacHelper = HmacHelper(self._symKey)
+
+        self._deviceProfile = DeviceProfile(category = "default", type_="default", serialNumber = "000000000")
+        self._bootstrapKey = HMACKey(0,0,"default","bootstrap")
         self._commands = []
-	self._accessControlManager = AccessControlManager()
+        self._accessControlManager = AccessControlManager()
+        self._configurationToken = HMACKey(0,0,"configurationToken","configurationToken")
+        self._seed =  HMACKey(0,0,"default","seedName")
 
     def expressBootstrapInterest(self):
         
@@ -70,7 +76,7 @@ class Device(BaseNode):
 
         bootstrapInterest = Interest(bootstrapName)
         bootstrapInterest.setInterestLifetimeMilliseconds(3000)
-        self._hmacHelper.signInterest(bootstrapInterest)
+        self._accessControlManager.signInterestWithHMACKey(bootstrapInterest,self._bootstrapKey)
 
         dump("Express bootstrap interest : ",bootstrapInterest.toUri())
         self.face.expressInterest(bootstrapInterest, self.onBootstrapData, self.onBootstrapTimeout)
@@ -78,16 +84,26 @@ class Device(BaseNode):
     def onBootstrapData(self, interest, data):
         dump("Bootstrap data received.")
 
-        if (self._hmacHelper.verifyData(data)):
-            self.log.info("Bootstrap data is verified")
-	    content = json.loads(data.getContent().toRawStr(), encoding="latin-1")
+        if (self._accessControlManager.verifyDataWithHMACKey(data, self._bootstrapKey)):
+            dump("Verified")
+            content = json.loads(data.getContent().toRawStr(), encoding="latin-1")
             deviceNewIdentity = Name(content["deviceNewIdentity"])
             controllerIdentity = Name(content["controllerIdentity"])
             controllerPublicKeyInfo = content["controllerPublicKey"]
-            seed = content["seed"]
-            seedSequence = content["seedSequence"]
-            configurationTokenSequence = content["configurationTokenSequence"]
+              
+            #add prefix to device profile
+            self._deviceProfile.setPrefix(deviceNewIdentity.toUri())
 
+            seed = HMACKey(content["seedSequence"], 0, str(content["seed"]), "seedName")
+            self._seed = seed
+
+            configurationTokenSequence = content["configurationTokenSequence"]
+           
+            #generate configuration token
+            configurationTokenName = controllerIdentity.toUri()+"/"+str(configurationTokenSequence)
+
+            configurationTokenKey = hmac.new(seed.getKey(), configurationTokenName, sha256).digest()
+            self._configurationToken = HMACKey(configurationTokenSequence, 0, configurationTokenKey, configurationTokenName)
 
             #register new identity 
             dump("Registered new prefix: ", deviceNewIdentity.toUri())
@@ -119,10 +135,10 @@ class Device(BaseNode):
                 dump("Controller's identity, key, certificate already exists.")
 
             #express an certificate request interest
-            defaultKeyName = self._identityManager.getDefaultKeyNameForIdentity(self._keyChain.getDefaultIdentity() )
+            #defaultKeyName = self._identityManager.getDefaultKeyNameForIdentity(self._keyChain.getDefaultIdentity() )
             #self.requestCertificate(defaultKeyName)
         else:
-            self.log.info("Bootstrap data is not verified")
+            dump("Not verified")
     
     def addCommands(self,commands):
         self._commands += commands
@@ -150,7 +166,6 @@ class Device(BaseNode):
         try:
             command = interestName.get(4).toEscapedString()
             dump("command: ",command)
-            dump("command list: ",self._commands)
         except:
             pass
 
@@ -161,14 +176,24 @@ class Device(BaseNode):
 
     def onProfileRequest(self, prefix, interest, transport, registeredPrefixId):
         #TODO verification
+        dump("Received profile request, verifying ...")
+        if ( self._accessControlManager.verifyInterestWithHMACKey(interest, self._configurationToken) ):
+            dump("Verified")
+            interestName = interest.getName() 
        
-        interestName = interest.getName() 
-       
-        data = Data(interestName)
-        content = self._deviceProfile
-        data.setContent(json.dumps(content.__dict__, encoding="latin-1"))
-        self.sendData(data,transport,sign=False)
-        dump("Send profile back : ", content.__dict__)
+            data = Data(interestName)
+            content = {}
+            content["deviceProfile"] = self._deviceProfile.__dict__
+            content["commandList"] = self._commands 
+            data.setContent(json.dumps(content, encoding="latin-1")) 
+
+            self._accessControlManager.signDataWithHMACKey(data, self._configurationToken)
+            self.sendData(data,transport,sign=False)
+            dump("Send profile back : ", content)
+        else:
+            dump("Not verified")
+        
+        
     
     def requestCertificate(self, keyIdentity):
         """
