@@ -23,19 +23,20 @@ This module gives an example of LED instance
 
 from device import Device
 from device_profile import DeviceProfile
-#import RPi.GPIO as GPIO
+import RPi.GPIO as GPIO
 from pyndn import Data
 
 class LED(Device):
 
     def __init__(self,configFileName=None):
         super(LED, self).__init__(configFileName)
-        
-	self._deviceProfile = DeviceProfile(category = "sensor", type_= "LED", serialNumber = "1")
+
+        self._identity = "/home/sensor/LED/1"
+        self._deviceProfile = DeviceProfile(category = "sensor", type_= "LED", serialNumber = "1")
         self.addCommands(['turnOn','turnOff','readStatus'])
 
     def turnOn(self, interest, transport):
-        """
+        
         GPIO.setmode(GPIO.BCM)
         GPIO.cleanup()
         GPIO.setup(17,GPIO.OUT)        	    
@@ -53,10 +54,10 @@ class LED(Device):
         self.sendData(data, transport, sign=False)
         print("msg success sent back")
         
-        """
+    
     def turnOff(self, interest, transport):
-        pass
-        """
+        
+        
         GPIO.setmode(GPIO.BCM)
         GPIO.cleanup()
         GPIO.setup(17,GPIO.OUT)        	    
@@ -72,7 +73,7 @@ class LED(Device):
         data.setContent("success")
         self.sendData(data, transport, sign=False)
         print("msg success sent back")
-        """
+    
   
 
 if __name__ == "__main__":

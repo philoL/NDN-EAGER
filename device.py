@@ -54,7 +54,7 @@ class Device(BaseNode):
         
         #for test
         self._callbackCount = 0
-
+        self._identity = "/home/default/default/000000000"
         self._deviceProfile = DeviceProfile(category = "default", type_="default", serialNumber = "000000000")
         self._bootstrapKey = HMACKey(0,0,"default","bootstrap")
         self._commands = []
@@ -148,6 +148,22 @@ class Device(BaseNode):
 
     def beforeLoopStart(self):
         #self.face.registerPrefix('/home', self.onInterest, self.onRegisterFailed)
+        identityName = Name(self._identity)
+        
+        defaultIdentityExists = True
+        try:
+            defaultIdentityName = self._identityManager.getDefaultIdentity()
+        except:
+            defaultIdentityExists = False
+
+        if not defaultIdentityExists or self._identityManager.getDefaultIdentity() != identityName:
+            #make one
+            dump("Create identity and certificate for identity name: ",identityName)
+            self._keyChain.createIdentityAndCertificate(identityName)
+            self._identityManager.setDefaultIdentity(identityName)
+        
+        self.face.setCommandSigningInfo(self._keyChain, self._keyChain.getDefaultCertificateName())
+        
         self.expressBootstrapInterest()
         
     def onTimeout(self, interest):
@@ -180,7 +196,7 @@ class Device(BaseNode):
                 self.excuteCommand(command, interest, transport)
             else:
                 dump("Not verified")
-                
+
     def onProfileRequest(self, prefix, interest, transport, registeredPrefixId):
         #TODO verification
         dump("Received profile request, verifying ...")
