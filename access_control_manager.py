@@ -27,6 +27,11 @@ from hmac_key import HMACKey
 This module uses access token method to sign, verfy, encrypt and decrypt data/interest. Besides, it generates and updates seed/command access token/access token. 
 
 """
+def dump(*list):
+    result = ""
+    for element in list:
+        result += (element if type(element) is str else repr(element)) + " "
+    print(result)
 
 class AccessControlManager(object):
 
@@ -70,6 +75,14 @@ class AccessControlManager(object):
         commandTokenName = interest.getName().getPrefix(5).append("token").append(commandSequence)
         commandToken = hmac.new(seed.getKey(), commandTokenName.toUri(), sha256).digest()
         accessToken = hmac.new(commandToken, accessTokenName.toUri(), sha256).digest()
+
+        
+        #dump("seed.getKey() :",seed.getKey())
+        #dump("commandTokenName :",commandTokenName)
+        #dump("commandTokenKey :",commandToken)
+        #dump("accessTokenName :",accessTokenName)
+        #dump("accessTokenKey :",accessToken)
+
         self.hmacHelper.setKey(accessToken)
 
         return self.hmacHelper.verifyInterest(interest)

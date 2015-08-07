@@ -78,22 +78,28 @@ class Counter(object):
 
 def main():
     loop = asyncio.get_event_loop()
-    face = ThreadsafeFace(loop, "localhost")
-
+    #face = ThreadsafeFace(loop, "localhost")
+    face = Face("localhost")
     # Counter will stop the ioService after callbacks for all expressInterest.
     counter = Counter(loop, 3)
 
     seed = HMACKey(0,0,"seed","seedName")
 
     # Try to fetch anything.
-    name1 = Name("/home/sensor/LED/1/turnOn")
+    name1 = Name("/home/sensor/LED/1/turnOn/0/0")
 
     commandTokenName = '/home/sensor/LED/1/turnOn/token/0'
     commandTokenKey = hmac.new(seed.getKey(), commandTokenName, sha256).digest()
     accessTokenName = '/home/sensor/LED/1/turnOn/token/0/user/Teng/token/0'
     accessTokenKey = hmac.new(commandTokenKey, accessTokenName, sha256).digest()
     accessToken = HMACKey(0,0,accessTokenKey,accessTokenName)
- 
+
+    dump("seed.getKey() :",seed.getKey())
+    dump("commandTokenName :",commandTokenName)
+    dump("commandTokenKey :",commandTokenKey)
+    dump("accessTokenName :",accessTokenName)
+    dump("accessTokenKey :",accessTokenKey)
+
     interest = Interest(name1)
     interest.setInterestLifetimeMilliseconds(3000)
     a = AccessControlManager()
