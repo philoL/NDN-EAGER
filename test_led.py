@@ -16,10 +16,32 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # A copy of the GNU Lesser General Public License is in the file COPYING.
-
 import time
+import json
+from pyndn import Name, Face, Interest, Data
+from pyndn.key_locator import KeyLocator, KeyLocatorType
+from hmac_helper import HmacHelper 
+from hmac_key import HMACKey
+import hmac 
+from hashlib import sha256
+from device_profile import  DeviceProfile
+
+from pyndn.security import KeyChain
+from base_node import BaseNode
+from pyndn.security import SecurityException
+from pyndn.util import Blob
+from device_user_access_manager import DeviceUserAccessManager
+from access_control_manager import AccessControlManager
+try:
+    # Use builtin asyncio on Python 3.4+, or Tulip on Python 3.3
+    import asyncio
+except ImportError:
+    # Use Trollius on Python <= 3.2
+    import trollius as asyncio
 from pyndn import Name
-from pyndn import Face
+# We must explicitly import from threadsafe_face. The pyndn module doesn't
+# automatically load it since asyncio is optional.
+from pyndn.threadsafe_face import ThreadsafeFace
 
 def dump(*list):
     result = ""
@@ -28,32 +50,62 @@ def dump(*list):
     print(result)
 
 class Counter(object):
-    def __init__(self):
+    """
+    Counter counts the number of calls to the onData or onTimeout callbacks.
+    Create a Counter to call loop.stop() after maxCallbackCount calls to
+    onData or onTimeout.
+    """
+    def __init__(self, loop, maxCallbackCount):
+        self._loop = loop
+        self._maxCallbackCount = maxCallbackCount
         self._callbackCount = 0
 
     def onData(self, interest, data):
-        self._callbackCount += 1
         dump("Got data packet with name", data.getName().toUri())
         # Use join to convert each byte to chr.
         dump(data.getContent().toRawStr())
 
-    def onTimeout(self, interest):
         self._callbackCount += 1
+        if self._callbackCount >= self._maxCallbackCount:
+            self._loop.stop()
+
+    def onTimeout(self, interest):
         dump("Time out for interest", interest.getName().toUri())
 
-def main():
-    face = Face("locolhost")
+        self._callbackCount += 1
+        if self._callbackCount >= self._maxCallbackCount:
+            self._loop.stop()
 
-    counter = Counter()
+def main():
+    loop = asyncio.get_event_loop()
+    face = ThreadsafeFace(loop, "localhost")
+
+    # Counter will stop the ioService after callbacks for all expressInterest.
+    counter = Counter(loop, 3)
+
+    seed = HMACKey(0,0,"seed","seedName")
 
     # Try to fetch anything.
-    name1 = Name("/home/sensor/LED/T99999990/turnOn")
-    dump("Express name ", name1.toUri())
-    face.expressInterest(name1, counter.onData, counter.onTimeout)
+    name1 = Name("/home/sensor/LED/1/turnOn")
 
-    name2 = Name("/home/sensor/LED/T99999990/turnOff")
+    commandTokenName = '/home/sensor/LED/1/turnOn/token/0'
+    commandTokenKey = hmac.new(seed.getKey(), commandTokenName, sha256).digest()
+    accessTokenName = '/home/sensor/LED/1/turnOn/token/0/user/Teng/token/0'
+    accessTokenKey = hmac.new(commandTokenKey, accessTokenName, sha256).digest()
+    accessToken = HMACKey(0,0,accessTokenKey,accessTokenName)
+ 
+    interest = Interest(name1)
+    interest.setInterestLifetimeMilliseconds(3000)
+    a = AccessControlManager()
+    a.signInterestWithHMACKey(interest,accessToken)
+    dump("Express name ", interest.toUri())
+    face.expressInterest(interest, counter.onData, counter.onTimeout)
+    
+    """
+    name2 = Name("/home/sensor/LED/T0829374723/turnOff")
     dump("Express name ", name2.toUri())
     face.expressInterest(name2, counter.onData, counter.onTimeout)
+    """
 
 
     while counter._callbackCount < 50:

@@ -171,9 +171,16 @@ class Device(BaseNode):
 
         if ("profile" in interestName.toUri()):
             self.onProfileRequest(prefix, interest, transport, registeredPrefixId)
-        elif (command in self._commands):
-            self.excuteCommand(command, interest, transport)
 
+        elif (command in self._commands):
+            #if it is a command interest,verify it
+            dump("It is a command interest, verifying ... ")
+            if (self._accessControlManager.verifyCommandInterestWithSeed(interest,self._seed)):
+                dump("Verified")
+                self.excuteCommand(command, interest, transport)
+            else:
+                dump("Not verified")
+                
     def onProfileRequest(self, prefix, interest, transport, registeredPrefixId):
         #TODO verification
         dump("Received profile request, verifying ...")
