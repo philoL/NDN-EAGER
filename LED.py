@@ -22,6 +22,7 @@ This module gives an example of LED instance
 """
 
 from device import Device
+from device_profile import DeviceProfile
 import RPi.GPIO as GPIO
 from pyndn import Data
 
@@ -29,7 +30,8 @@ class LED(Device):
 
     def __init__(self,configFileName=None):
         super(LED, self).__init__(configFileName)
-
+        
+	self._deviceProfile = DeviceProfile(category = "sensors", type_= "LED", serialNumber = "T0829374723")
         self.addCommands(['turnOn','turnOff','readStatus'])
 
     def turnOn(self, interest, transport):

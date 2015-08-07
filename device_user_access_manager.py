@@ -26,6 +26,9 @@ import sys
 from pyndn.name import Name
 from device_profile import DeviceProfile
 from device_storage import DeviceStorage
+import hmac
+from hashlib import sha256
+from hmac_key import HMACKey
 
 class DeviceUserAccessManager(object):
     """
@@ -41,8 +44,11 @@ class DeviceUserAccessManager(object):
         @param DeviceProfile deviceProfile: the device profile
         @param SymmetricKey seed: the seed of the device
         @param SymmetricKey configurationToken: the configuration Token of the device
-        @param list commandList: the command list of the device, must have following structure: each element in the list should be a two-tuple (commandName, commandToken), the commandName should be a string, and commandToken should be a SymmetricKey. Here is an example of a valid commandList : [('turn_on', commandToken1), ('turn_off', commandToken2)]
-        return True if succeed, otherwise False
+        @param list commandList: the command list of the device, must have following structure: each element in the 
+                                 list should be a two-tuple (commandName, commandToken), the commandName should be 
+                                 a string, and commandToken should be a SymmetricKey. 
+                                 Here is an example of a valid commandList : [('turn_on', commandToken1), 
+                                 ('turn_off', commandToken2)] return True if succeed, otherwise False
         """
         result = False
 
@@ -65,9 +71,16 @@ class DeviceUserAccessManager(object):
             elif serviceProfileId == -1:
                 raise RuntimeError("error occured during adding service profile :" + serviceProfileName)
                 return result
+
         #add command
-        for commandTuple in commandList:
-            commandId = self._deviceUserAccessStorage.addCommand(deviceId, commandTuple[0], commandTuple[1])
+        for command in commandList:
+            #generate command token. First generate command token name
+            prefix = deviceProfile.getPrefix()
+            commandTokenName = prefix.toUri() + "/" + command + "/token/0"
+            commandTokenKey = hmac.new(seed.getKey(),commandTokenName,sha256).digest()
+            commandToken = HMACKey(0,0,commandTokenKey,commandTokenName)
+
+            commandId = self._deviceUserAccessStorage.addCommand(deviceId, command, commandToken)
             if commandId == 0:
                 raise RuntimeError("command: " + commandTuple[0] + " already exists in database")
                 return result

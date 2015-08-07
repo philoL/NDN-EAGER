@@ -184,6 +184,7 @@ class Device(BaseNode):
             data = Data(interestName)
             content = {}
             content["deviceProfile"] = self._deviceProfile.__dict__
+
             content["commandList"] = self._commands 
             data.setContent(json.dumps(content, encoding="latin-1")) 
 

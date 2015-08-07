@@ -26,7 +26,7 @@ from hmac_helper import HmacHelper
 from hmac_key import HMACKey
 import hmac 
 from hashlib import sha256
-import hmac
+from device_profile import  DeviceProfile
 
 from pyndn.security import KeyChain
 from base_node import BaseNode
@@ -193,18 +193,44 @@ class Controller(BaseNode):
         dump("Profile received, verifying ...")
         if ( self._accessControlManager.verifyInterestWithHMACKey(interest, self._newDevice['configurationToken']) ):
             dump("Verified.")
+              
+            #load content
             content = json.loads(data.getContent().toRawStr(), encoding="latin-1")
-            self._newDevice['deviceProfile'] = json.loads(content['deviceProfile'], encoding="latin-1")
-            dump("device profile ",self._newDevice['deviceProfile'])
-            self._newDevice['commandList'] = content['commandList']
-            self._deviceDict[self._newDevice['deviceProfile']["prefix"]] = self._newDevice
 
-            dump("deviceProfile ",self._newDevice['deviceProfile'])
+            #load deviceProfile " 'prefix', 'location', 'manufacturer', 'category', 'type', 'model', 'serialNumber', 'serviceProfileList'"
+            deviceProfileDict = content['deviceProfile']
+            prefix = deviceProfileDict['_prefix']
+            location = deviceProfileDict['_location']
+            manufacturer = deviceProfileDict['_manufacturer']
+            category = deviceProfileDict['_category']
+            _type = deviceProfileDict['_type']
+            model = deviceProfileDict['_model']
+            serialNumber = deviceProfileDict['_serialNumber']
+            serviceProfileList = deviceProfileDict['_serviceProfileList'] 
+
+            self._newDevice['deviceProfile'] = DeviceProfile(prefix, location, manufacturer,
+                category, _type, model, serialNumber, serviceProfileList)
+
+            dump("device profile ",self._newDevice['deviceProfile'])
+
+            #load command list
+            self._newDevice['commandList'] = content['commandList']
             dump("commandList ",self._newDevice['commandList'])
+
+            #add newDevice into self._deviceDict 
+            self._deviceDict[prefix] = self._newDevice
+
             #add device to DB
-            dump("creating device into DB")
-            #self._deviceUserAccessManager.createDevice(self._newDevice['deviceProfile'],)
-            dump(deviceProfile)
+            
+
+            try:
+                self._deviceUserAccessManager.createDevice(self._newDevice['deviceProfile'], self._newDevice['seed'],
+                        self._newDevice['configurationToken'], self._newDevice['commandList'])
+                dump("Creating a new device into DB")
+            except RuntimeError:
+                dump("Ooops... The device is already in DB. There is no need to add one more")  
+
+            
         else:
             dump("Not verified.") 
 

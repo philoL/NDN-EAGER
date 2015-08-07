@@ -95,6 +95,7 @@ class DeviceStorage(object):
             databaseFilePath = os.path.join(dbDirectory, 'ndnhome-controller.db')
 
         self._database =  sqlite3.connect(databaseFilePath)
+        self._database.text_factory = str
         
         #Check if the Device table exists
         cursor = self._database.cursor()

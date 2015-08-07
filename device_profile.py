@@ -34,7 +34,10 @@ class DeviceProfile(object):
         param str model: device's model
         parma str lsit serviceProfileList: the list of service profile names 
         '''
-        self._prefix = prefix
+        if type(prefix) is Name:
+            self._prefix = prefix
+        else:
+            self._prefix = Name(prefix)
         self._location = location
         self._manufacturer = manufacturer
         self._category = category
