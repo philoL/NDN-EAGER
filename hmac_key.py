@@ -20,7 +20,7 @@ class HMACKey(object):
     """
     HMACKey implements the  HMAC symmetric key
     """
-    def __init__(self, sequence, counter, key, name = None):
+    def __init__(self, sequence = None, counter = None, key = None, name = None):
         self._name = name
         self._sequence = sequence
         self._counter = counter

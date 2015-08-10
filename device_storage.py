@@ -78,7 +78,7 @@ CREATE TABLE IF NOT EXISTS
 
 class DeviceStorage(object):
     """
-    Create a new DeviceUserStorage to work with an SQLite file.
+    Create a new DeviceStorage to work with an SQLite file.
     :param str databaseFilePath: (optional) The path of the SQLite file. If ommitted, use the default path.
     """
     def __init__(self, databaseFilePath = None):
@@ -472,7 +472,9 @@ class DeviceStorage(object):
         #if not count > 0:
             #return None
         cursor.execute(operation, (deviceId,))
-        result = cursor.fetchall()                    
+        result = cursor.fetchall()
+        cursor.close()
+                    
         #print result
         commandList = []
         if result == None:
@@ -482,6 +484,65 @@ class DeviceStorage(object):
                commandList.append(row[0]) 
     
         return commandList
+
+    def getCommandIdsOfDevice(self, deviceId):
+        """
+        get all the id of  commands of a specified device
+        :param int deviceId: device id of the command
+        :return command id list if any commands exist, otherwise None
+
+        """
+        operation = "SELECT id FROM Command WHERE device_id = ?"
+       
+        cursor = self._database.cursor()
+        
+        cursor.execute(operation, (deviceId,))
+        result = cursor.fetchall()
+        cursor.close()
+
+        #print result
+        commandIdList = []
+        if result == None:
+           return commandIdList
+        else:
+           for row in result:
+               commandIdList.append(row[0])
+
+        return commandIdList
+
+    def getCommandId(self, deviceId, commandName):
+        """
+        get the id of a specified command
+        :param int deviceId: device id of the command
+        :param str commandName: command name  
+        :return command id if the command exist, otherwise 0
+        """
+        operation = "SELECT id FROM Command WHERE device_id=? AND name=?"
+        cursor = self._database.cursor()
+        cursor.execute(operation,(deviceId,commandName))
+        result = cursor.fetchone()
+        cursor.close()
+       
+        if result == None:
+            return 0
+        commandId = result[0]
+        return commandId
+
+    def getCommandNameFromId(self, commandId):
+        """
+        get command Name given a command id
+        :param int commandId: command id
+        :return command name        
+        :rtype str
+        """
+        operation = "SELECT name from Command WHERE id = ?"
+        cursor =  self._database.cursor()
+        cursor.execute(operation,(commandId,))
+        result = cursor.fetchone()
+        if result == None:
+            return None
+        commandName = result[0]
+        return commandName
 
     def getCommandToken(self, deviceId, commandName):
         """
@@ -495,6 +556,8 @@ class DeviceStorage(object):
         cursor = self._database.cursor()
         cursor.execute(operation, (deviceId, commandName))
         result = cursor.fetchone()
+        cursor.close()
+
         if result == None:
             return None
         else:

@@ -22,6 +22,7 @@ import os.path
 from pyndn import Name
 from device_storage import DeviceStorage
 from device_profile import DeviceProfile
+from user_access_storage import UserAccessStorage
 from hmac_key import HMACKey
 
 
@@ -43,28 +44,46 @@ class FillDatabaseForTest(object):
             os.remove(self.databaseFilePath)
 
         self.storage = DeviceStorage()
-
+        self.userStorage = UserAccessStorage()
     def fillDatabase(self):
         count = self.count
         prefixStrBase = 'home/sensor/LED/'
         serviceProfileNameBase = '/standard/sensor/simple-LED-control/v'
         commandNameBase = 'turn_on'
         commandNameBase2 = 'turn_off'
+
+        prefixBase = '/home'  
+        hash_ = 'EEADFADSFAGASLGALS'
+        salt = 'adfafdwekldsfljcdc'
+        type_ = 'guest'
+
         for i in range(1, count+1):
+             #add device 
              prefixStr = prefixStrBase + str(i)
              self.add_a_default_device(prefixStr)
              name = Name(prefixStr)
              deviceId = self.storage.getDeviceId(name)
+             #add service profile
              serviceProfileName = serviceProfileNameBase + str(i)
              self.storage.addServiceProfile(deviceId, serviceProfileName)
-
+             #add command
              commandName = commandNameBase + str(i)
              commandName2 = commandNameBase2 + str(i)
              commandToken = self.create_a_default_key(commandName)
              commandToken2 = self.create_a_default_key(commandName2)
              self.storage.addCommand(deviceId, commandName, commandToken)
              self.storage.addCommand(deviceId,commandName2,commandToken2)
-
+             #add user
+             username = 'user' + str(i)
+             prefixStr =prefixBase +'/' + username
+             prefixName = Name(prefixStr)
+             self.userStorage.addUser(prefixName, username, hash_, salt, type_)
+           
+             #add access
+             accessTokenName = 'accessToken' + str(i)
+             accessToken = self.create_a_default_key(accessTokenName)
+             self.userStorage.addAccess(i, i, 'laptop', accessToken )
+             
     def add_a_default_device(self, prefixStr):
         name = Name(prefixStr)
         profile = DeviceProfile(prefix = name)

@@ -137,7 +137,8 @@ class Controller(BaseNode):
             self.sendData(data,transport,sign=False)
            
             #request for device profile
-            time.sleep(1)
+            dump("Wait for 5 s. New device is registering new prefix.")
+            time.sleep(5)
             self.expressProfileRequest(deviceNewIdentity)
         else: 
             self.log.info("Bootstrap interest not verified")
