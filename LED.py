@@ -31,24 +31,25 @@ class LED(Device):
     def __init__(self,configFileName=None):
         super(LED, self).__init__(configFileName)
 
-        self._identity = "/home/sensor/LED/1"
-        self._deviceProfile = DeviceProfile(category = "sensor", type_= "LED", serialNumber = "1")
-        self.addCommands(['turnOn','turnOff','readStatus'])
+        self._identity = "/home/sensor/LED/2"
+        self._deviceProfile = DeviceProfile(category = "sensor", type_= "LED", serialNumber = "2")
+        self.addCommands(['turnOn','turnOff','status'])
 
     def turnOn(self, interest, transport):
-        
+        """
         GPIO.setmode(GPIO.BCM)
         GPIO.cleanup()
         GPIO.setup(17,GPIO.OUT)        	    
         GPIO.setup(16,GPIO.OUT) 
         GPIO.setup(21,GPIO.OUT)
+        """
         print("Command turnOn is excuted, the light is on.")
-
+        """
         GPIO.output(17,GPIO.HIGH)
         GPIO.output(16,GPIO.HIGH)
         GPIO.output(21,GPIO.HIGH)
 
-        
+        """
         data = Data(interest.getName())
         data.setContent("success")
         self.sendData(data, transport, sign=False)
@@ -74,7 +75,8 @@ class LED(Device):
         self.sendData(data, transport, sign=False)
         print("msg success sent back")
     
-  
+    def status(self, interest, transport):
+        pass
 
 if __name__ == "__main__":
     led = LED()

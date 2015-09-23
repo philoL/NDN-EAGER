@@ -93,12 +93,12 @@ def main():
     seed = HMACKey(0,0,"seed","seedName")
 
     # Try to fetch anything.
-    name1 = Name("/home/sensor/LED/1/"+cmd+"/0/0")
+    name1 = Name("/home/sensor/LED/0/"+cmd+"/0/0")
 
-    commandTokenName = '/home/sensor/LED/1/'+cmd+'/token/0'
+    commandTokenName = '/home/sensor/LED/0/'+cmd+'/token/0'
     
     commandTokenKey = hmac.new(seed.getKey(), commandTokenName, sha256).digest()
-    accessTokenName = '/home/sensor/LED/1/'+cmd+'/token/0/user/Tom/token/0'
+    accessTokenName = '/home/sensor/LED/0/'+cmd+'/token/0/user/Tom/token/0'
     accessTokenKey = hmac.new(commandTokenKey, accessTokenName, sha256).digest()
     accessToken = HMACKey(0,0,accessTokenKey,accessTokenName)
 

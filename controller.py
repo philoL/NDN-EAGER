@@ -129,6 +129,7 @@ class Controller(BaseNode):
                 dump("commandTken     ------------- : ",base64.b64encode(commandToken))
                 dump("accessTokenName ------------- : ",accessTokenNameStr)
                 dump("accessToken ----------------- : ",base64.b64encode(accessToken))
+                dump("accessToken hex-------------- : ",hmac.new(commandToken, accessTokenNameStr, sha256).hexdigest())
                 accessTokenInfo = {}
                 accessTokenInfo['command'] = eachCommand
                 accessTokenInfo['commandTokenSequence'] = commandTokenSequence
