@@ -180,7 +180,7 @@ class Device(BaseNode):
         interestName = interest.getName()
         dump("Received interest: ",interestName.toUri())
         try:
-            command = interestName.get(4).toEscapedString()
+            command = interestName.get(5).toEscapedString()
             dump("command: ",command)
         except:
             pass

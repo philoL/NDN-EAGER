@@ -211,7 +211,8 @@ class Controller(BaseNode):
             deviceParameters = json.loads(interestName.get(3).getValue().toRawStr())
 
             #create new identity for device
-            deviceNewIdentity = Name("home")
+            #deviceNewIdentity = Name("home")
+            deviceNewIdentity = Name("UA-cs-718")
             deviceNewIdentity.append(deviceParameters["category"])
             deviceNewIdentity.append(deviceParameters["type"])
             deviceNewIdentity.append(deviceParameters["serialNumber"])
