@@ -59,8 +59,8 @@ class hmacHelperTest(ut.TestCase):
     	freshInterest = Interest(Name("/home/controller"))
     	self.h.signInterest(freshInterest, self.raw_key_name)
          
-        s = self.h.extractInterestSignature(freshInterest)
-        self.assertEqual(s.getKeyLocator().getKeyName().toUri(), self.raw_key_name, 'key name does not match')
+        s = freshInterest.extractInterestSignature()
+        k = s.getKeyLocator().getName().toUri()
         result = self.h.verifyInterest(freshInterest)        
         self.assertEqual(result, True, 'verifiedInterest does not match original interest')
 
@@ -69,12 +69,12 @@ class hmacHelperTest(ut.TestCase):
         freshData.setContent("SUCCESS!")
         freshData.getMetaInfo().setFreshnessPeriod(5000.0)
         freshData.getMetaInfo().setFinalBlockId(Name("/%00%09")[0])
-        
+
        
-        self.h.signData(freshData, self.raw_key_name)
+        self.h.signData(freshInterest, self.raw_key_name)
          
-        result = self.h.verifyData(freshData)        
-        self.assertEqual(result, True, 'verified data does not match original data')
+        result = self.h.verifyInterest(freshInterest)        
+        self.assertEqual(result, True, 'verifiedInterest does not match original interest')
 
 
 

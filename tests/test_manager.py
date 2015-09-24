@@ -53,7 +53,7 @@ class TestManagerMethods(ut.TestCase):
         self.manager = DeviceUserAccessManager()
         self.assertTrue(os.path.isfile(self.databaseFilePath), 'fail to create database file')
 
-    def test_02_methods(self):
+    def test_02_device_methods(self):
         #create device
         prefixStr = '/home/sensor/LED/1'
         name = Name(prefixStr)
@@ -65,16 +65,11 @@ class TestManagerMethods(ut.TestCase):
         keyContent = 'this is key content'
         seedName = 'led1'
         seed =  HMACKey( 0, 0 ,keyContent, seedName)
-        configurationToken =  HMACKey(0, 0, keyContent)
-        commandTokenName1 = 'commandToken1'
-        commandTokenName2 = 'commandToken2'
-        commandToken = HMACKey(0,0, keyContent, commandTokenName1)
-        commandToken2 = HMACKey(0,0,keyContent, commandTokenName2)
+        configurationToken =  HMACKey(0, 0, keyContent) 
+  
         commandName1 = 'turn_on'
-        commandName2 = 'turn_off'
-        commandTuple = (commandName1, commandToken)
-        commandTuple2 = (commandName2, commandToken2)
-        commandList =  [commandTuple, commandTuple2]
+        commandName2 = 'turn_off' 
+        commandList =  [commandName1, commandName2]
         result = self.manager.createDevice(profile, seed, configurationToken, commandList)
         self.assertTrue(result, 'fail to create device')
        
@@ -92,8 +87,11 @@ class TestManagerMethods(ut.TestCase):
         self.assertTrue(configurationToken.getKey()== keyContent, 'wrong configration token')
        
         #getCommandToken()
-        commandToken1 = self.manager.getCommandToken(name, commandName1 )
+        commandToken1 = self.manager.getCommandToken(name, commandName1)
         commandToken2 = self.manager.getCommandToken(name, commandName2)
+        commandTokenName1 = name.toUri()+"/"+ commandName1 +"/token/0"
+        commandTokenName2 = name.toUri()+"/"+ commandName2 +"/token/0"
+
         self.assertTrue(commandToken1.getName() == commandTokenName1, 'wrong commandToken')
         self.assertTrue(commandToken2.getName() == commandTokenName2, 'wrong commandToken')
  
@@ -107,7 +105,56 @@ class TestManagerMethods(ut.TestCase):
         self.assertTrue(serviceProfileList[0] in serviceProfileListReturned, 'service profile:' + serviceProfileList[0] + ' not found')
         self.assertTrue(serviceProfileList[1] in serviceProfileListReturned, 'service profile:' + serviceProfileList[1] + ' not found')
 
+    def test_03_user_access_methods(self):
+        #prerequisite: add device and command
+        devicePrefixStr = '/home/sensor/LED/1'
+        devicePrefix = Name(devicePrefixStr)
+        self.create_a_default_device(devicePrefix)
+        
+        #add user
+        username = 'user1'
+        userPrefixBase = '/home'
+        userPrefixStr = userPrefixBase + '/' + username
+        userPrefix = Name(userPrefixStr)
+        hash_ = 'EEADFADSFAGASLGALS'
+        salt = 'adfafdwekldsfljcdc'
+        type_ = 'guest'    
+        result = self.manager.addUser(userPrefix, username, hash_, salt, type_)
+        self.assertTrue(result > 0, 'fail to add user')
+       
+        #add access
+        commandName = 'turn_off'
+        userDevice = 'laptop'
+        keyContent = 'this is key content'
+        accessToken =  HMACKey(0, None, keyContent, 'accessToken1')
+        result = self.manager.addAccess(devicePrefix, commandName, userPrefix, userDevice, accessToken)
+        self.assertTrue(result > 0, 'fail to add acces')
 
+        #get access info 
+        accessList = self.manager.getAccessInfo(userPrefix,devicePrefix)
+        row = accessList[0]
+        self.assertTrue(row[0] == commandName, 'wrong access info: command name')
+        self.assertTrue(row[1] == userDevice, 'wrong access info: user device')
+        self.assertTrue(row[2].getName() == 'accessToken1', 'wrong access info: access token')
+
+    def create_a_default_device(self, prefixName):
+        """
+        create a default device with specified device prefix name and with two default commands 'turn_on' and 'turn_off'
+        """
+
+        name = prefixName
+        profile = DeviceProfile(prefix = name)      
+        keyContent = 'this is key content'
+        seedName = 'led1'
+        seed =  HMACKey( 0, 0 ,keyContent, seedName)
+        configurationToken =  HMACKey(0, 0, keyContent)  
+        commandName1 = 'turn_on'
+        commandName2 = 'turn_off'
+        commandList =  [commandName1, commandName2]
+        result = self.manager.createDevice(profile, seed, configurationToken, commandList)
+        self.assertTrue(result, 'fail to create device')
+        
+        
 if __name__ == '__main__':
     ut.main(verbosity=2)
 
