@@ -62,13 +62,13 @@ class Device(BaseNode):
         self._configurationToken = HMACKey(0,0,"configurationToken","configurationToken")
         self._seed =  HMACKey(0,0,"default","seedName")
 
-            self.name = Name("/UA-cs-718/device/light/1/service/status")
+        self.name = Name("/UA-cs-718/device/light/1/service/status")
         self.seed = sha256("status").digest()
         self.accessTokenName = Name('/UA-cs-718/device/light/1/service/status/seed/0/device/switch/1/key/0').toUri()
         self.accessTokenKey = hmac.new(self.seed, self.accessTokenName, sha256).digest()
         self.accessToken = HMACKey(0,0,self.accessTokenKey,self.accessTokenName)
 
-        self.start = 0
+        self.start_time = 0
         self.end = 0
         self.s = 0
         self.a = AccessControlManager()
@@ -80,20 +80,23 @@ class Device(BaseNode):
         interest = Interest(self.name)
         interest.setInterestLifetimeMilliseconds(3000)
         self.a.signInterestWithHMACKey(interest,self.accessToken)
-        self.face.expressInterest(interest, self.onData, self.onTimeout)
 
-        dump("Express bootstrap interest : ",interest.toUri())
-        self.face.expressInterest(interest, self.onBootstrapData, self.onBootstrapTimeout)
-        print "start:", time.time()
-        self.start = time.time()
+        #dump("Express bootstrap interest : ",interest.toUri())
+        self.face.expressInterest(interest, self.onData, self.onBootstrapTimeout)
+        #print "start:", time.time()
+        self.start_time = time.time()
     
-    def onBootstrapData(self, interest, data):
+    def onData(self, interest, data):
         self.end = time.time()
-        print "end: ", time.time()
-        self.s = self.start - self.end
-        print "s: ",self.s
-        self._callbackCount +=1 
+        #print "end: ", time.time()
+        self.s += - self.start_time + self.end
+
+        time.sleep(0.1) 
+        self._callbackCount +=1
+        #print self._callbackCount 
         if self._callbackCount >= 100:
+            
+            print "s: ",self.s
             exit(1)
 
         self.expressBootstrapInterest()
