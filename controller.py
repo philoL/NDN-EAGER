@@ -263,7 +263,7 @@ class Controller(BaseNode):
             self.sendData(data,transport,sign=False)
            
             #request for device profile
-            self.expressProfileRequest(deviceNewIdentity)
+            #self.expressProfileRequest(deviceNewIdentity)
         else: 
             self.log.info("Bootstrap interest not verified")
 

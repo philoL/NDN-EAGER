@@ -175,13 +175,13 @@ class Device(BaseNode):
         self.expressBootstrapInterest()
         dump("Time out for bootstrap interest, send again", interest.getName().toUri())
 
-
     def onInterest(self, prefix, interest, transport, registeredPrefixId):
+        """
         interestName = interest.getName()
-        dump("Received interest: ",interestName.toUri())
+        #dump("Received interest: ",interestName.toUri())
         try:
             command = interestName.get(5).toEscapedString()
-            dump("command: ",command)
+            #dump("command: ",command)
         except:
             pass
 
@@ -190,6 +190,9 @@ class Device(BaseNode):
 
         elif (command in self._commands):
             self.excuteCommand(command, interest, transport)
+        """
+        
+        self.excuteCommand('status', interest, transport)
             #if it is a command interest,verify it
             #dump("It is a command interest, verifying ... ")
             #if (self._accessControlManager.verifyCommandInterestWithSeed(interest,self._seed)):

@@ -116,15 +116,15 @@ class HmacHelper(object):
         interestName.append(Name.Component())
 
         encoding = interest.wireEncode(wireFormat)
-        print("Part encoding : ",base64.b64encode(encoding.toRawStr()))
+        #print("Part encoding : ",base64.b64encode(encoding.toRawStr()))
  
         signer = hmac.new(self.key, encoding.toSignedBuffer(), sha256)
-        print("sign signature: ",base64.b64encode(signer.digest()))
+        #print("sign signature: ",base64.b64encode(signer.digest()))
         s.setSignature(Blob(signer.digest()))
         interest.setName(interestName.getPrefix(-1).append(
             wireFormat.encodeSignatureValue(s)))
         
-        print("After all encoding : ",base64.b64encode(interest.wireEncode(wireFormat).toRawStr()))
+        #print("After all encoding : ",base64.b64encode(interest.wireEncode(wireFormat).toRawStr()))
 
 
     def verifyInterest(self, interest, wireFormat=None):
