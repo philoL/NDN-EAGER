@@ -31,7 +31,7 @@ import hmac
 import resource
 from pympler import asizeof
 import base64
-import RPi.GPIO as GPIO
+#import RPi.GPIO as GPIO
 
 def memory_usage():
     return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
@@ -54,7 +54,7 @@ class LED(Device):
 
 
       
-    @profile
+    #@profile
     def status(self, interest, transport):
         InterestName = interest.getName()
         print InterestName
@@ -68,15 +68,15 @@ class LED(Device):
             print("Evaluation : verified")
         
         #cmd excution
-        GPIO.setmode(GPIO.BCM)
-        GPIO.setup(17,GPIO.OUT)
-        state = GPIO.input(17)
-        GPIO.cleanup()
-        if (state):
-            content = "on"
-        else:
-            content = "off"
-
+        #GPIO.setmode(GPIO.BCM)
+        #GPIO.setup(17,GPIO.OUT)
+        #state = GPIO.input(17)
+        #GPIO.cleanup()
+        #if (state):
+        #    content = "on"
+        #else:
+        #    content = "off"
+        content = "off"
         data = Data(interest.getName())
         data.setContent(content)
         self.sendData(data, transport, sign=False)
