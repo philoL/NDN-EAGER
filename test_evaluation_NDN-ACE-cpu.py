@@ -36,7 +36,7 @@ from access_control_manager import AccessControlManager
 from hmac_key import HMACKey
 from hashlib import sha256
 import hmac
-
+import base64
 try:
     import asyncio
 except ImportError:
@@ -72,15 +72,20 @@ class Device(BaseNode):
         self.end = 0
         self.s = 0
         self.a = AccessControlManager()
-
+        self.f = open("result-ACE-cpu.txt","w")
+ 
     def expressBootstrapInterest(self):
         
         #generate bootstrap name /home/controller/bootstrap/<device-parameters>
-       
+          
         interest = Interest(self.name)
         interest.setInterestLifetimeMilliseconds(3000)
         self.a.signInterestWithHMACKey(interest,self.accessToken)
-
+       
+        #print "seed: ", base64.b64encode(self.seed) 
+        #print "access token name: ", self.accessTokenName
+        #print "access token key: ", base64.b64encode(self.accessToken.getKey())  
+        #print("interest name : ", interest.getName())
         #dump("Express bootstrap interest : ",interest.toUri())
         self.face.expressInterest(interest, self.onData, self.onBootstrapTimeout)
         #print "start:", time.time()
@@ -91,14 +96,20 @@ class Device(BaseNode):
         #print "end: ", time.time()
         self.s += - self.start_time + self.end
 
-        time.sleep(0.1) 
+         
         self._callbackCount +=1
         #print self._callbackCount 
-        if self._callbackCount >= 100:
-            
-            print "s: ",self.s
+        if self._callbackCount >= 1000:
+            self.f.write("s : %f\n" % self.s)
+            self.f.close()            
+            #print "s: ",self.s
             exit(1)
+        elif self._callbackCount % 100 == 0:
+            self.f.write("s : %f\n" % self.s)
+            #print "s: ",self.s
 
+
+        time.sleep(1)
         self.expressBootstrapInterest()
     
     def addCommands(self,commands):

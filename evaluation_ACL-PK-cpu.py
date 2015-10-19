@@ -23,7 +23,7 @@ This module gives an example of LED instance
 from pyndn.encoding import WireFormat
 from device import Device
 from device_profile import DeviceProfile
-from pyndn import Data, Interest, Name, KeyLocatorType
+from pyndn import Data
 import sys
 from hashlib import sha256
 from hmac_helper import HmacHelper
@@ -32,12 +32,23 @@ import resource
 from pympler import asizeof
 import base64
 import RPi.GPIO as GPIO
-from access_control_manager import AccessControlManager
-from hmac_key import HMACKey
-from pyndn.util import Blob
-
+from Crypto.Hash import SHA256
+from Crypto.PublicKey import RSA
+from Crypto import Random
+from pyndn import Name
+from  random import SystemRandom
+from time import time as timestamp
 from pyndn.sha256_with_rsa_signature import Sha256WithRsaSignature
-
+from pyndn.encoding import WireFormat
+from pyndn.util import Blob
+from pyndn.digest_sha256_signature import DigestSha256Signature
+from pyndn.sha256_with_rsa_signature import Sha256WithRsaSignature
+from pyndn import Data, KeyLocatorType, Interest, Name
+from hashlib import sha256
+from random import SystemRandom
+from time import time as timestamp
+import base64
+import hmac
 
 def memory_usage():
     return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
@@ -53,36 +64,64 @@ class LED(Device):
         self.addCommands(['turnOn','turnOff','status'])
 
         self.hmachelper = HmacHelper("default", None)
-        self.seeds = {}
-        self.seeds["turnOn"] = [sha256("turnOn").digest(),0]
-        self.seeds["turnOff"] = [sha256("turnOff").digest(),0]
-        self.seeds["status"] = [sha256("status").digest(),0]
-        
-        self.name = Name("/UA-cs-718/device/light/1/service/status")
-        self.seed = sha256("status").digest()
-        #self.accessTokenName = Name('/UA-cs-718/device/light/1/service/status/seed/0/device/switch/1/key/0').toUri()
-        #self.accessTokenKey = hmac.new(self.seed, self.accessTokenName, sha256).digest()
-        #self.accessToken = HMACKey(0,0,self.accessTokenKey,self.accessTokenName)
 
+        random_generator = Random.new().read
+        self.key = RSA.generate(1024, random_generator)
+        self.keys = {} 
+        self.keyName = Name('/UA-cs-718/device/light/1/service/status/seed/0/device/switch/1/key/0')
+        self.keys[self.keyName.toUri()] = self.key.publickey()
 
-        #self.accessControlManager = AccessControlManager()
+        #generate interest
+        self.random = SystemRandom()
+        nonceValue = bytearray(8)
+        for i in range(8):
+            nonceValue[i] = self.random.randint(0,0xff)
+        timestampValue = bytearray(8)
+        ts = int(timestamp()*1000)
+        for i in range(8):
+            byte = ts & 0xff
+            timestampValue[-(i+1)] = byte
+            ts = ts >> 8
+
+        wireFormat = WireFormat.getDefaultWireFormat()
+
+        s = Sha256WithRsaSignature()
+        s.getKeyLocator().setType(KeyLocatorType.KEYNAME)
+        s.getKeyLocator().setKeyName(self.keyName)
+
+        interest = Interest("/UA-cs-718/device/light/1/service/status")
+        interestName = interest.getName()
+        interestName.append(nonceValue).append(timestampValue)
+        interestName.append(wireFormat.encodeSignatureInfo(s))
+        interestName.append(Name.Component())
+        encoding = interest.wireEncode(wireFormat).toSignedBuffer()
+        self.h = SHA256.new("hash").digest()
+        hash = hmac.new(self.h, encoding, sha256).digest()
+        signature = self.key.sign(hash, "")
+        s.setSignature(Blob(str(signature[0])))
+        interest.setName(interestName.getPrefix(-1).append(
+            wireFormat.encodeSignatureValue(s)))
+    
+
+        self.interest = interest
+
       
     #@profile
     def status(self, interest, transport):
         #print("in status")
         # parsing interests
-        signature = self.hmachelper.extractInterestSignature(interest) 
+        signature = self.hmachelper.extractInterestSignature(self.interest) 
         signature_raw = signature.getSignature().toRawStr()
+        rsa_signature = (long(signature_raw), )
         access_key_name = signature.getKeyLocator().getKeyName().toUri()
-        encoding = interest.wireEncode(WireFormat.getDefaultWireFormat()) 
+        encoding = self.interest.wireEncode(WireFormat.getDefaultWireFormat()).toSignedBuffer()
        
 
         # authentication
-        access_key = hmac.new( self.seeds["status"][0] , access_key_name, sha256).digest()
-        valid_hash = hmac.new(access_key, encoding.toSignedBuffer(), sha256).digest()
-        
-        if signature_raw == valid_hash:
-            #print ("verified") 
+        hash = hmac.new(self.h, encoding, sha256).digest()
+        access_key = self.keys[access_key_name] 
+        if access_key.verify(hash, rsa_signature):
+           
             #cmd excution
             GPIO.setmode(GPIO.BCM)
             GPIO.setup(17,GPIO.OUT)
@@ -96,17 +135,18 @@ class LED(Device):
             #data generation
             data = Data(interest.getName())
             data.setContent(content)
-
-            #self.accessControlManager.signDataWithHMACKey(data,self.accessToken)
-            data_signature = Sha256WithRsaSignature()
-            data_signature.getKeyLocator().setType(KeyLocatorType.KEYNAME)
-            data_signature.getKeyLocator().setKeyName(access_key_name)
-            wireFormat = WireFormat.getDefaultWireFormat()
-            encoded = data.wireEncode(wireFormat).toSignedBuffer()
             
-            s = hmac.new(access_key, encoded, sha256).digest()
+            encoding = data.wireEncode(WireFormat.getDefaultWireFormat()).toSignedBuffer()
             
-            data_signature.setSignature(Blob(s))
+            #data signing
+            data_hash = hmac.new(self.h, encoding, sha256).digest()
+            data_signature = self.key.sign(data_hash,"")
+         
+            s = Sha256WithRsaSignature()
+            s.getKeyLocator().setType(KeyLocatorType.KEYNAME)
+            s.getKeyLocator().setKeyName(self.keyName)
+            s.setSignature(Blob(str(data_signature[0])))
+            data.setSignature(s)
             self.sendData(data, transport, sign=False)
 
     def turnOn(self, interest, transport):

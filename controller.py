@@ -48,7 +48,7 @@ class Controller(BaseNode):
         super(Controller, self).__init__(configFileName=configFileName)
         self._responseCount = 0
 
-        self._bootstrapKey = HMACKey(0,0,"default","bootstrap")
+        self._bootstrapKey = HMACKey(0,0,sha256("default").digest(),"bootstrap")
         self._prefix = "/home"
         self._identity = "/home/controller/id999"
 

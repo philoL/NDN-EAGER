@@ -37,8 +37,9 @@ class HmacHelper(object):
         else:
             self.wireFormat = wireFormat
 
-    def setKey(self, raw_key):
-	self.key = sha256(raw_key).digest()
+    def setKey(self, key):
+	self.key = key 
+
 
     @classmethod
     def generatePin(cls):
@@ -114,16 +115,20 @@ class HmacHelper(object):
         interestName.append(nonceValue).append(timestampValue)
         interestName.append(wireFormat.encodeSignatureInfo(s))
         interestName.append(Name.Component())
+        #print("####### Signing Interest #######")
 
         encoding = interest.wireEncode(wireFormat)
-        #print("Part encoding : ",base64.b64encode(encoding.toRawStr()))
- 
+        #print(" encoding : ",base64.b64encode(encoding.toRawStr()))
+        #print(" key : ",base64.b64encode(self.key)) 
         signer = hmac.new(self.key, encoding.toSignedBuffer(), sha256)
         #print("sign signature: ",base64.b64encode(signer.digest()))
+        
         s.setSignature(Blob(signer.digest()))
         interest.setName(interestName.getPrefix(-1).append(
             wireFormat.encodeSignatureValue(s)))
         
+         
+      
         #print("After all encoding : ",base64.b64encode(interest.wireEncode(wireFormat).toRawStr()))
 
 

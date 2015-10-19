@@ -56,7 +56,7 @@ class Device(BaseNode):
         self._callbackCount = 0
         self._identity = "/home/default/default/000000000"
         self._deviceProfile = DeviceProfile(category = "default", type_="default", serialNumber = "000000000")
-        self._bootstrapKey = HMACKey(0,0,"default","bootstrap")
+        self._bootstrapKey = HMACKey(0,0,sha256("default").digest(),"bootstrap")
         self._commands = []
         self._accessControlManager = AccessControlManager()
         self._configurationToken = HMACKey(0,0,"configurationToken","configurationToken")
