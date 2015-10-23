@@ -72,7 +72,7 @@ class Device(BaseNode):
         self.end = 0
         self.s = 0
         self.a = AccessControlManager()
-        self.f = open("result-ACE-cpu.txt","w")
+        #self.f = open("result-ACE-cpu.txt","w")
  
     def expressBootstrapInterest(self):
         
@@ -100,12 +100,12 @@ class Device(BaseNode):
         self._callbackCount +=1
         #print self._callbackCount 
         if self._callbackCount >= 1000:
-            self.f.write("s : %f\n" % self.s)
-            self.f.close()            
+            #self.f.write("s : %f\n" % self.s)
+            #self.f.close()            
             #print "s: ",self.s
             exit(1)
-        elif self._callbackCount % 100 == 0:
-            self.f.write("s : %f\n" % self.s)
+        #elif self._callbackCount % 100 == 0:
+           # self.f.write("s : %f\n" % self.s)
             #print "s: ",self.s
 
 

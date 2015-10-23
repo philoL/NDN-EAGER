@@ -66,11 +66,15 @@ class LED(Device):
         self.hmachelper = HmacHelper("default", None)
 
         random_generator = Random.new().read
+        self.AS_key = RSA.generate(1024, random_generator)
+        random_generator = Random.new().read
         self.key = RSA.generate(1024, random_generator)
         self.keys = {} 
         self.keyName = Name('/UA-cs-718/device/light/1/service/status/seed/0/device/switch/1/key/0')
-        self.keys[self.keyName.toUri()] = self.key.publickey()
+        certificate_hash = SHA256.new(self.keyName.toUri()).digest()
+        certificate = self.AS_key.sign(certificate_hash,"")
 
+        self.keys[self.keyName.toUri()] = (self.key.publickey(),certificate)
         #generate interest
         self.random = SystemRandom()
         nonceValue = bytearray(8)
@@ -95,59 +99,51 @@ class LED(Device):
         interestName.append(wireFormat.encodeSignatureInfo(s))
         interestName.append(Name.Component())
         encoding = interest.wireEncode(wireFormat).toSignedBuffer()
-        self.h = SHA256.new("hash").digest()
-        hash = hmac.new(self.h, encoding, sha256).digest()
-        signature = self.key.sign(hash, "")
+        self.h = SHA256.new(bytes(encoding)).digest()
+        #hash = hmac.new(self.h, encoding, sha256).digest()
+        signature = self.key.sign(self.h, "")
         s.setSignature(Blob(str(signature[0])))
         interest.setName(interestName.getPrefix(-1).append(
             wireFormat.encodeSignatureValue(s)))
     
-
         self.interest = interest
 
       
-    #@profile
+    @profile
     def status(self, interest, transport):
-        #print("in status")
-        # parsing interests
         signature = self.hmachelper.extractInterestSignature(self.interest) 
         signature_raw = signature.getSignature().toRawStr()
         rsa_signature = (long(signature_raw), )
         access_key_name = signature.getKeyLocator().getKeyName().toUri()
-        encoding = self.interest.wireEncode(WireFormat.getDefaultWireFormat()).toSignedBuffer()
-       
-
-        # authentication
-        hash = hmac.new(self.h, encoding, sha256).digest()
-        access_key = self.keys[access_key_name] 
-        if access_key.verify(hash, rsa_signature):
-           
-            #cmd excution
-            GPIO.setmode(GPIO.BCM)
-            GPIO.setup(17,GPIO.OUT)
-            state = GPIO.input(17)
-            GPIO.cleanup()
-            if (state):
-                content = "on"
-            else:
-                content = "off"
-            
-            #data generation
-            data = Data(interest.getName())
-            data.setContent(content)
-            
-            encoding = data.wireEncode(WireFormat.getDefaultWireFormat()).toSignedBuffer()
-            
-            #data signing
-            data_hash = hmac.new(self.h, encoding, sha256).digest()
-            data_signature = self.key.sign(data_hash,"")
+        encoding = bytes(self.interest.wireEncode(WireFormat.getDefaultWireFormat()).toSignedBuffer())
+        # authentication 
+        access_key, certificate = self.keys[access_key_name]
+        name_hash = SHA256.new(access_key_name).digest()
+        if self.AS_key.verify(name_hash, certificate):
+            interest_hash = SHA256.new(encoding).digest()
+            if access_key.verify(interest_hash, rsa_signature):
+                #cmd excution
+                GPIO.setmode(GPIO.BCM)
+                GPIO.setup(17,GPIO.OUT)
+                state = GPIO.input(17)
+                GPIO.cleanup()
+                if (state):
+                    content = "on"
+                else:
+                    content = "off"
+                data = Data(interest.getName())
+                data.setContent(content)
+                encoding = bytes(data.wireEncode(WireFormat.getDefaultWireFormat()).toSignedBuffer())
+                #data signing
+                data_hash = SHA256.new(encoding).digest()
+                data_signature = self.key.sign(data_hash,"")
          
-            s = Sha256WithRsaSignature()
-            s.getKeyLocator().setType(KeyLocatorType.KEYNAME)
-            s.getKeyLocator().setKeyName(self.keyName)
-            s.setSignature(Blob(str(data_signature[0])))
-            data.setSignature(s)
-            self.sendData(data, transport, sign=False)
+                s = Sha256WithRsaSignature()
+                s.getKeyLocator().setType(KeyLocatorType.KEYNAME)
+                s.getKeyLocator().setKeyName(self.keyName)
+                s.setSignature(Blob(str(data_signature[0])))
+                data.setSignature(s)
+                self.sendData(data, transport, sign=False)
 
     def turnOn(self, interest, transport):
         

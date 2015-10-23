@@ -39,8 +39,6 @@ from pyndn.util import Blob
 from pyndn.sha256_with_rsa_signature import Sha256WithRsaSignature
 
 
-def memory_usage():
-    return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
 
 
 class LED(Device):
