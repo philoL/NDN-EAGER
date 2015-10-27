@@ -31,7 +31,7 @@ import hmac
 import resource
 from pympler import asizeof
 import base64
-import RPi.GPIO as GPIO
+#import RPi.GPIO as GPIO
 from Crypto.Hash import SHA256
 from Crypto.PublicKey import RSA
 from Crypto import Random
@@ -123,14 +123,15 @@ class LED(Device):
             interest_hash = SHA256.new(encoding).digest()
             if access_key.verify(interest_hash, rsa_signature):
                 #cmd excution
-                GPIO.setmode(GPIO.BCM)
-                GPIO.setup(17,GPIO.OUT)
-                state = GPIO.input(17)
-                GPIO.cleanup()
-                if (state):
-                    content = "on"
-                else:
-                    content = "off"
+                #GPIO.setmode(GPIO.BCM)
+                #GPIO.setup(17,GPIO.OUT)
+                #state = GPIO.input(17)
+                #GPIO.cleanup()
+                #if (state):
+                #    content = "on"
+                #else:
+                #    content = "off"
+		content = "off"
                 data = Data(interest.getName())
                 data.setContent(content)
                 encoding = bytes(data.wireEncode(WireFormat.getDefaultWireFormat()).toSignedBuffer())

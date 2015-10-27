@@ -61,27 +61,10 @@ class LED(Device):
         for i in range(30):
             key_name = "/UA-cs-718/device/switch/"+str(i)+"/key/0"
             keys[key_name] = sha256(key_name).digest()
-        print("\n Memory usage for keys dictinary: %d Bytes" %  sys.getsizeof(keys))
+
         print asizeof.asized(keys).format()
 
-        signature = self.hmachelper.extractInterestSignature(interest)
-        print("\n Memory usage for signature: %d Bytes " % sys.getsizeof(signature))
 
-        access_key_name = signature.getKeyLocator().getKeyName().toUri()
-        print(" Memory usage for access_key_name: %d Bytes" % sys.getsizeof(access_key_name))
-
-        access_key = keys[access_key_name]
-        print(" Memory usage for access_key: %d Bytes"% sys.getsizeof(access_key))
-
-        encoding = interest.wireEncode(WireFormat.getDefaultWireFormat()) 
-        print(" Memory usage for interest encoding: %d Bytes" % sys.getsizeof(encoding)) 
-
-        valid_hash = hmac.new(access_key, encoding.toSignedBuffer(), sha256).digest()
-        print(" Memory usage for valid_hash: %d Bytes\n" % sys.getsizeof(valid_hash))
-
-        if signature.getSignature().toRawStr() == valid_hash:
-            print("Evaluation : verified")
-        print "End - Memory usage : %d KB" % memory_usage()
 
         data = Data(interest.getName())
         data.setContent("on")

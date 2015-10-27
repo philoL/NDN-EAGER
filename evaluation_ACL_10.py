@@ -52,7 +52,7 @@ class LED(Device):
 
 
       
-    @profile
+    #@profile
     def status(self, interest, transport):
        
         #print "Start - Memory usage : %d KB" % memory_usage()
@@ -62,17 +62,17 @@ class LED(Device):
             key_name = "/UA-cs-718/device/switch/"+str(i)+"/key/0"
             keys[key_name] = sha256(key_name).digest()
         #print("\n Memory usage for keys dictinary: %d Bytes" %  sys.getsizeof(keys))
-        #print asizeof.asized(keys).format()
+        print asizeof.asized(keys).format()
 
         #authentication
-        signature = self.hmachelper.extractInterestSignature(interest)
-        access_key_name = signature.getKeyLocator().getKeyName().toUri()
-        access_key = keys[access_key_name]
-        encoding = interest.wireEncode(WireFormat.getDefaultWireFormat()) 
-        valid_hash = hmac.new(access_key, encoding.toSignedBuffer(), sha256).digest()
+        #signature = self.hmachelper.extractInterestSignature(interest)
+        #access_key_name = signature.getKeyLocator().getKeyName().toUri()
+        #access_key = keys[access_key_name]
+        #encoding = interest.wireEncode(WireFormat.getDefaultWireFormat()) 
+        #valid_hash = hmac.new(access_key, encoding.toSignedBuffer(), sha256).digest()
 
-        if signature.getSignature().toRawStr() == valid_hash:
-            print("Evaluation : verified")
+        #if signature.getSignature().toRawStr() == valid_hash:
+        #    print("Evaluation : verified")
         #print "End - Memory usage : %d KB" % memory_usage()
 
         data = Data(interest.getName())

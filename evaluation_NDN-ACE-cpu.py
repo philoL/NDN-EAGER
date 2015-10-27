@@ -31,7 +31,7 @@ import hmac
 import resource
 from pympler import asizeof
 import base64
-import RPi.GPIO as GPIO
+#import RPi.GPIO as GPIO
 from access_control_manager import AccessControlManager
 from hmac_key import HMACKey
 from pyndn.util import Blob
@@ -65,7 +65,7 @@ class LED(Device):
 
         #self.accessControlManager = AccessControlManager()
       
-    #@profile
+    @profile
     def status(self, interest, transport):
         #print("in status")
         # parsing interests
@@ -82,15 +82,15 @@ class LED(Device):
         if signature_raw == valid_hash:
             #print ("verified") 
             #cmd excution
-            GPIO.setmode(GPIO.BCM)
-            GPIO.setup(17,GPIO.OUT)
-            state = GPIO.input(17)
-            GPIO.cleanup()
-            if (state):
-                content = "on"
-            else:
-                content = "off"
-            
+            #GPIO.setmode(GPIO.BCM)
+            #GPIO.setup(17,GPIO.OUT)
+            #state = GPIO.input(17)
+            #GPIO.cleanup()
+            #if (state):
+            #    content = "on"
+            #else:
+            #    content = "off"
+            content = "off" 
             #data generation
             data = Data(interest.getName())
             data.setContent(content)
