@@ -58,12 +58,14 @@ def generate_RSA(bits=2048):
     public_key = new_key.publickey().exportKey("PEM") 
     private_key = new_key.exportKey("PEM") 
     return private_key, public_key
+
 pkeys = []
 for i in range(200):
     print i
     private_key , public_key = generate_RSA()
+    public_key = "".join(public_key.split("\n")[1:-1])
     pkeys.append(public_key)
-
+    
 #private_key = private_key.split("\n")[1:-1]
 #public_key =public_key.split("\n")[1]
 
@@ -91,14 +93,8 @@ for each in range(10,201,10):
     #keys["/UA-cs-718/device/light/1/private-key"] = private_key
 
     for i in range(each):
-        random_generator = Random.new().read
-        key = RSA.generate(1024, random_generator)
-        public_key = key.publickey()
         key_name = "/UA-cs-718/device/switch/"+str(i)+"/key/0"
-        private_key , public_key = generate_RSA()
         keys[key_name] = pkeys[i]
-
-
 
     print len(keys.keys())
     print asizeof.asized(keys).format()
