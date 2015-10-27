@@ -1,0 +1,39 @@
+{'/UA-cs-718/device/switch/8/key/0': '....qS6lMJMq7JIsHexCE1X89TGfDWh/yQIDAQAB'} size=6088 flat=1048
+20
+{'/UA-cs-718/device/switch/8/key/0': '....qS6lMJMq7JIsHexCE1X89TGfDWh/yQIDAQAB'} size=11128 flat=1048
+30
+{'/UA-cs-718/device/switch/27/key/0': ....qS6lMJMq7JIsHexCE1X89TGfDWh/yQIDAQAB'} size=18472 flat=3352
+40
+{'/UA-cs-718/device/switch/27/key/0': ....qS6lMJMq7JIsHexCE1X89TGfDWh/yQIDAQAB'} size=23512 flat=3352
+50
+{'/UA-cs-718/device/switch/48/key/0': ....qS6lMJMq7JIsHexCE1X89TGfDWh/yQIDAQAB'} size=28552 flat=3352
+60
+{'/UA-cs-718/device/switch/48/key/0': ....qS6lMJMq7JIsHexCE1X89TGfDWh/yQIDAQAB'} size=33592 flat=3352
+70
+{'/UA-cs-718/device/switch/48/key/0': ....qS6lMJMq7JIsHexCE1X89TGfDWh/yQIDAQAB'} size=38632 flat=3352
+80
+{'/UA-cs-718/device/switch/48/key/0': ....qS6lMJMq7JIsHexCE1X89TGfDWh/yQIDAQAB'} size=43672 flat=3352
+90
+{'/UA-cs-718/device/switch/48/key/0': ....EXHSVIBFJqUAwhlaEWzKe9ZT8RF6zwIDAQAB'} size=57928 flat=12568
+100
+{'/UA-cs-718/device/switch/48/key/0': ....EXHSVIBFJqUAwhlaEWzKe9ZT8RF6zwIDAQAB'} size=62968 flat=12568
+110
+{'/UA-cs-718/device/switch/48/key/0': ....EXHSVIBFJqUAwhlaEWzKe9ZT8RF6zwIDAQAB'} size=68008 flat=12568
+120
+{'/UA-cs-718/device/switch/112/key/0':....EXHSVIBFJqUAwhlaEWzKe9ZT8RF6zwIDAQAB'} size=73048 flat=12568
+130
+{'/UA-cs-718/device/switch/112/key/0':....EXHSVIBFJqUAwhlaEWzKe9ZT8RF6zwIDAQAB'} size=78088 flat=12568
+140
+{'/UA-cs-718/device/switch/112/key/0':....EXHSVIBFJqUAwhlaEWzKe9ZT8RF6zwIDAQAB'} size=83128 flat=12568
+150
+{'/UA-cs-718/device/switch/112/key/0':....EXHSVIBFJqUAwhlaEWzKe9ZT8RF6zwIDAQAB'} size=88168 flat=12568
+160
+{'/UA-cs-718/device/switch/112/key/0':....EXHSVIBFJqUAwhlaEWzKe9ZT8RF6zwIDAQAB'} size=93208 flat=12568
+170
+{'/UA-cs-718/device/switch/112/key/0':....EXHSVIBFJqUAwhlaEWzKe9ZT8RF6zwIDAQAB'} size=98248 flat=12568
+180
+{'/UA-cs-718/device/switch/112/key/0':....EXHSVIBFJqUAwhlaEWzKe9ZT8RF6zwIDAQAB'} size=103288 flat=12568
+190
+{'/UA-cs-718/device/switch/112/key/0':....EXHSVIBFJqUAwhlaEWzKe9ZT8RF6zwIDAQAB'} size=108328 flat=12568
+200
+{'/UA-cs-718/device/switch/112/key/0':....EXHSVIBFJqUAwhlaEWzKe9ZT8RF6zwIDAQAB'} size=113368 flat=12568
