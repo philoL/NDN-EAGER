@@ -69,8 +69,8 @@ def main():
     name = Name("/UA-cs-718/device/light/1/service/status")
     seed = sha256("status").digest()
     accessTokenName = Name('/UA-cs-718/device/light/1/service/status/seed/0/device/switch/1/key/0').toUri()
-    accessTokenKey = hmac.new(self.seed, self.accessTokenName, sha256).digest()
-    accessToken = HMACKey(0,0,self.accessTokenKey,self.accessTokenName)
+    accessTokenKey = hmac.new(seed, accessTokenName, sha256).digest()
+    accessToken = HMACKey(0,0,accessTokenKey,accessTokenName)
     a = AccessControlManager()
 
     while (1):
@@ -80,8 +80,9 @@ def main():
         a.signInterestWithHMACKey(interest,accessToken)
     
         face.expressInterest(interest, counter.onData, counter.onTimeout)
-        #    face.processEvents()
-        time.sleep(1)
+        #print interest.toUri()
+        face.processEvents()
+        time.sleep(0.51)
    
 
     #while counter._callbackCount < 3:
